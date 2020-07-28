@@ -98,7 +98,7 @@ good_data=good_data.drop(['Date','Time','msec','Time_in_seconds','SliceCount', '
              'Particle_number_all', 'particle_time', 'particle_millisec', 'inter_arrival',
              'particle_microsec', 'parent_rec_num', 'particle_num', 'image_longest_y',
              'image_auto_reject', 'image_hollow', 'image_center_in', 'image_axis_ratio',
-             'part_z', 'size_factor', 'holroyd_habit','datetime','area_hole_ratio', 'flag'],axis=1)
+             'part_z', 'size_factor', 'holroyd_habit','datetime','area_hole_ratio', 'flag', 'epoch'],axis=1)
 
 model = pickle.load(open('/home/disk/eos9/jlu43/random_forests/model.0.8751679637015776',"rb"))
 predictions_g = model.predict(good_data)
