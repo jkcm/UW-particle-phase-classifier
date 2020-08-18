@@ -189,7 +189,7 @@ def make_psd(flight_time, tas, particle_time, diameter_minR, diameter_areaR, pha
     time = np.array([], dtype='datetime64[s]')
     deadtime_flag = np.zeros(num_times).astype(int)
     for time_ind in range(num_times): # loop through each N-second interval
-        if np.mod(time_ind, 1000.)==0:
+        if np.mod(time_ind, 1000./float(tres))==0:
             print(' Processing time {}/{}'.format(str(time_ind), str(num_times)))
         curr_time = flight_time[0] + np.timedelta64(int(time_ind*tres), 's')
         time = np.append(time, curr_time)
@@ -201,11 +201,11 @@ def make_psd(flight_time, tas, particle_time, diameter_minR, diameter_areaR, pha
         intArr_subset[intArr_subset<0.] = 0.
         ovrld_flag_subset = ovrld_flag_all[time_inds] # overload flag of particles for current flight time iteration
         dead_time = np.sum(intArr_subset[ovrld_flag_subset!=0.]) # add up inter arrival times of overloaded particles
-        if dead_time>float(tres):
-            dead_time = float(tres) # ensure probe dead time doesn't exceed the averaging interval
         if dead_time>0.8*np.float(tres):
             #print(' {}: Dead time exceeds 80% of time interval. Flagging this period.'.format(np.datetime_as_string(curr_time)))
             deadtime_flag[time_ind] = 1
+            if dead_time>float(tres):
+                dead_time = float(tres) # ensure probe dead time doesn't exceed the averaging interval
         
         # Compute the sample volume
         tas_mean = np.mean(tas[(flight_time>=curr_time) & (flight_time<curr_time+np.timedelta64(tres, 's'))])
@@ -220,25 +220,25 @@ def make_psd(flight_time, tas, particle_time, diameter_minR, diameter_areaR, pha
         inds_liq_ar = (particle_time>=curr_time) & (particle_time<curr_time+np.timedelta64(tres, 's')) & (phase_ar==1)
         inds_ice_ar = (particle_time>=curr_time) & (particle_time<curr_time+np.timedelta64(tres, 's')) & (phase_ar==0)
 
-        if sum(inds_all)==1:
+        if sum(inds_all)>=1:
             count_dmax_all[time_ind, :] = np.histogram(diameter_minR[inds_all], bins=binEdges)[0]
             count_darea_all[time_ind, :] = np.histogram(diameter_areaR[inds_all], bins=binEdges)[0]
-        if sum(inds_liq_ml)==1:
+        if sum(inds_liq_ml)>=1:
             count_dmax_liq_ml[time_ind, :] = np.histogram(diameter_minR[inds_liq_ml], bins=binEdges)[0]
             count_darea_liq_ml[time_ind, :] = np.histogram(diameter_areaR[inds_liq_ml], bins=binEdges)[0]
-        if sum(inds_ice_ml)==1:
+        if sum(inds_ice_ml)>=1:
             count_dmax_ice_ml[time_ind, :] = np.histogram(diameter_minR[inds_ice_ml], bins=binEdges)[0]
             count_darea_ice_ml[time_ind, :] = np.histogram(diameter_areaR[inds_ice_ml], bins=binEdges)[0]
-        if sum(inds_liq_holroyd)==1:
+        if sum(inds_liq_holroyd)>=1:
             count_dmax_liq_holroyd[time_ind, :] = np.histogram(diameter_minR[inds_liq_holroyd], bins=binEdges)[0]
             count_darea_liq_holroyd[time_ind, :] = np.histogram(diameter_areaR[inds_liq_holroyd], bins=binEdges)[0]
-        if sum(inds_ice_holroyd)==1:
+        if sum(inds_ice_holroyd)>=1:
             count_dmax_ice_holroyd[time_ind, :] = np.histogram(diameter_minR[inds_ice_holroyd], bins=binEdges)[0]
             count_darea_ice_holroyd[time_ind, :] = np.histogram(diameter_areaR[inds_ice_holroyd], bins=binEdges)[0]
-        if sum(inds_liq_ar)==1:
+        if sum(inds_liq_ar)>=1:
             count_dmax_liq_ar[time_ind, :] = np.histogram(diameter_minR[inds_liq_ar], bins=binEdges)[0]
             count_darea_liq_ar[time_ind, :] = np.histogram(diameter_areaR[inds_liq_ar], bins=binEdges)[0]
-        if sum(inds_ice_ar)==1:
+        if sum(inds_ice_ar)>=1:
             count_dmax_ice_ar[time_ind, :] = np.histogram(diameter_minR[inds_ice_ar], bins=binEdges)[0]
             count_darea_ice_ar[time_ind, :] = np.histogram(diameter_areaR[inds_ice_ar], bins=binEdges)[0]
 
