@@ -119,8 +119,8 @@ def load_pbp(pbpfilename, phasefilename, Dmin=0.05, Dmax=3.2, iatThresh=1.e-6):
     print('Loading the phase ID data.')
     ds2 = xr.open_dataset(phasefilename)
     
-    phase_ml = ds2['model_pred'].values # TODO: figure out what values indicate [1:liq, 0:ice]
-    prob_ml = ds2['model_prob'].values # phase ID confidence [0-1, float]
+    phase_ml = ds2['UW_phase'].values # [1:liq, 0:ice]
+    prob_ml = ds2['UW_certainty'].values # phase ID confidence [0-1, float]
     flag_ml = ds2['UW_flag'].values # 0: good, classifiable partile; else: rejected, not classified
     phase_holroyd = ds2['Holroyd_phase'].values # [1:liq, 0:ice]
     phase_ar = ds2['AR_threshold_phase'].values # [1:liq, 0:ice]
@@ -160,8 +160,8 @@ def make_psd(flight_time, tas, particle_time, diameter_minR, diameter_areaR, pha
     psd = {}
     
     if binEdges is None: # assign default bin edges
-        binEdges = [50., 75., 100., 125., 150., 200., 250., 300., 350., 400., 475., 550., 625., 700., 800., 900., 1000.,
-                    1200., 1400., 1600., 1800., 2000., 2200., 2400., 2600., 2800., 3000., 3200.] / 1000. # [mm]
+        binEdges = np.array([50., 75., 100., 125., 150., 200., 250., 300., 350., 400., 475., 550., 625., 700., 800., 900., 1000.,
+        1200., 1400., 1600., 1800., 2000., 2200., 2400., 2600., 2800., 3000., 3200.]) / 1000. # [mm]
     binWidth = np.diff(binEdges) / 10. # [cm]
     
     # Prepare the time loop and allocate PSD arrays
@@ -195,15 +195,16 @@ def make_psd(flight_time, tas, particle_time, diameter_minR, diameter_areaR, pha
         time = np.append(time, curr_time)
 
         # Compute the amount of dead time
-        time_inds = (particle_time_all>=curr_time) & (particle_time<curr_time+np.timedelta64(tres, 's'))
+        time_inds = (particle_time_all>=curr_time) & (particle_time_all<curr_time+np.timedelta64(tres, 's'))
         intArr_subset = intArr_all[time_inds] # inter arrival time of particles for current flight time iteration
         intArr_subset[intArr_subset<-10.] = intArr_subset[intArr_subset<-10.] + (2**32-1) * (1.e-5 / 170.)
         intArr_subset[intArr_subset<0.] = 0.
         ovrld_flag_subset = ovrld_flag_all[time_inds] # overload flag of particles for current flight time iteration
         dead_time = np.sum(intArr_subset[ovrld_flag_subset!=0.]) # add up inter arrival times of overloaded particles
-        dead_time[dead_time>np.float(tres)] = np.float(tres) # ensure probe dead time doesn't exceed the averaging interval
+        if dead_time>float(tres):
+            dead_time = float(tres) # ensure probe dead time doesn't exceed the averaging interval
         if dead_time>0.8*np.float(tres):
-            print(' {}: Dead time exceeds 80% of time interval. Flagging this period.'.format(np.datetime_as_string(curr_time)))
+            #print(' {}: Dead time exceeds 80% of time interval. Flagging this period.'.format(np.datetime_as_string(curr_time)))
             deadtime_flag[time_ind] = 1
         
         # Compute the sample volume
