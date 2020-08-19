@@ -40,7 +40,7 @@ def nan_helper(array_values):
     """
     return np.isnan(array_values), lambda z: z.nonzero()[0]
 
-def sample_area(binmid): # TODO: finish this routine
+def sample_area(binmid):
     '''
     Compute the sample area array for SPEC probes using the center-in method.
     
@@ -93,7 +93,17 @@ def load_pbp(pbpfilename, phasefilename, Dmin=0.05, Dmax=3.2, iatThresh=1.e-6):
         Dmax: largest maximum dimenison to consider in the PDSs (speeds up processing) [mm]
         iatThresh: smallest interarrival time to consider in the PDSs (speeds up processing) [s]
     Outputs:
-        TODO: [Need to finish this part]
+        time: time of (accepted) particles classified by the random forest model [numpy.datetime64]
+        diam_minR: diameter of a minimum enclosing circle for accepted particles [mm]
+        diam_areaR: area equivalent diameter for accepted particles [mm]
+        phase_ml: particle phase determined by the random forest model [0: ice; 1: liquid]
+        phase_holroyd: particle phase determined by the Holroyd (1987) scheme [0: ice; 1: liquid]
+        phase_ar: particle phase determined by an area ratio = 0.4 threshold [0: ice; 1: liquid]
+        prob_ice_ml: probability of a particle being ice as classified by the random forest model [0-1]
+        prob_liq_ml: probability of a particle being liquid as classified by the random forest model [0-1]
+        time_all: time of all particles [numpy.datetime64]
+        intArr: particle interarrival time [s]
+        ovrld_flag: particle overload flag [0: no dead time associated with partle; else: dead time]
     '''
     # First load the particle data
     print('Loading the particle data. This may take a minute...')
@@ -149,12 +159,23 @@ def load_pbp(pbpfilename, phasefilename, Dmin=0.05, Dmax=3.2, iatThresh=1.e-6):
             time_all, intArr, ovrld_flag)
 
 def make_psd(flight_time, tas, particle_time, diameter_minR, diameter_areaR, phase_ml, phase_holroyd, phase_ar,
-             particle_time_all, intArr_all, ovrld_flag_all, binEdges=None, tres=1):
+             particle_time_all, intArr_all, ovrld_flag_all, binEdges=None, tres=1, outfile=None):
     '''
     Inputs:
-        tres: Temporal averaging resolution [s]
-        # TODO add the other inputs
-    # This subroutine needs to be tested still.
+        flight_time: flight time [numpy.datetime64]
+        tas: flight true airspeed [m/s]
+        particle_time: time of (accepted) particles classified by the random forest model [numpy.datetime64]
+        diameter_minR: diameter of a minimum enclosing circle for accepted particles [mm]
+        diameter_areaR: area equivalent diameter for accepted particles [mm]
+        phase_ml: particle phase determined by the machine learning model [0: ice; 1: liquid]
+        phase_holroyd: particle phase determined by the Holroyd (1987) scheme [0: ice; 1: liquid]
+        phase_ar: particle phase determined by an area ratio = 0.4 threshold [0: ice; 1: liquid]
+        particle_time_all: time of all particles [numpy.datetime64]
+        intArr_all: particle interarrival time [s]
+        ovrld_flag_all: particle overload flag [0: no dead time associated with partle; else: dead time]
+        binEdges: array of size bin endpoints to make PSDs [None: use default array; mm]
+        tres: temporal resolution for PSDs [s; default = 1 s]
+        outfile: full file path to save the PSD data [None: skip saving; str]
     # TODO: Add any of the phase probability data? e.g., for uncertainty estimates
     '''
     psd = {}
@@ -163,6 +184,10 @@ def make_psd(flight_time, tas, particle_time, diameter_minR, diameter_areaR, pha
         binEdges = np.array([50., 75., 100., 125., 150., 200., 250., 300., 350., 400., 475., 550., 625., 700., 800., 900., 1000.,
         1200., 1400., 1600., 1800., 2000., 2200., 2400., 2600., 2800., 3000., 3200.]) / 1000. # [mm]
     binWidth = np.diff(binEdges) / 10. # [cm]
+    binMid = binEdges[:-1] / 10. + binWidth / 2. # bin midpoint for LWC calculation [cm]
+
+    # Compute the sample area (used in sample volume calculation)
+    sa = sample_area(binEdges[:-1] + np.diff(binEdges) / 2.) # [mm^2]
     
     # Prepare the time loop and allocate PSD arrays
     dur = (flight_time[-1] - flight_time[0]) / np.timedelta64(1, 's') # flight duration [s]
@@ -183,8 +208,9 @@ def make_psd(flight_time, tas, particle_time, diameter_minR, diameter_areaR, pha
     count_darea_liq_ar = np.zeros((num_times, len(binEdges)-1))
     count_darea_ice_ar = np.zeros((num_times, len(binEdges)-1))
     sv = np.zeros((num_times, len(binEdges)-1))
-    
-    sa = sample_area(binEdges[:-1] + np.diff(binEdges) / 2.) # mm^2
+    lwc_ml = np.zeros(num_times)
+    lwc_holroyd = np.zeros(num_times)
+    lwc_ar = np.zeros(num_times)
     
     time = np.array([], dtype='datetime64[s]')
     deadtime_flag = np.zeros(num_times).astype(int)
@@ -209,7 +235,7 @@ def make_psd(flight_time, tas, particle_time, diameter_minR, diameter_areaR, pha
         
         # Compute the sample volume
         tas_mean = np.mean(tas[(flight_time>=curr_time) & (flight_time<curr_time+np.timedelta64(tres, 's'))])
-        sv[time_ind] = (sa / 100.) * (tas_mean * 100.) * (np.float(tres)-dead_time) # cm^3
+        sv[time_ind, :] = (sa / 100.) * (tas_mean * 100.) * (np.float(tres)-dead_time) # cm**3
         
         # Find the particles within the current time interval for each phase classification
         inds_all = (particle_time>=curr_time) & (particle_time<curr_time+np.timedelta64(tres, 's')) # all particles irrespective of phase
@@ -226,18 +252,21 @@ def make_psd(flight_time, tas, particle_time, diameter_minR, diameter_areaR, pha
         if sum(inds_liq_ml)>=1:
             count_dmax_liq_ml[time_ind, :] = np.histogram(diameter_minR[inds_liq_ml], bins=binEdges)[0]
             count_darea_liq_ml[time_ind, :] = np.histogram(diameter_areaR[inds_liq_ml], bins=binEdges)[0]
+            lwc_ml[time_ind] = np.nansum(count_dmax_liq_ml[time_ind, :] / sv[time_ind, :] * np.pi / 6. * binMid**3.) * 1.e6 # g m**-3
         if sum(inds_ice_ml)>=1:
             count_dmax_ice_ml[time_ind, :] = np.histogram(diameter_minR[inds_ice_ml], bins=binEdges)[0]
             count_darea_ice_ml[time_ind, :] = np.histogram(diameter_areaR[inds_ice_ml], bins=binEdges)[0]
         if sum(inds_liq_holroyd)>=1:
             count_dmax_liq_holroyd[time_ind, :] = np.histogram(diameter_minR[inds_liq_holroyd], bins=binEdges)[0]
             count_darea_liq_holroyd[time_ind, :] = np.histogram(diameter_areaR[inds_liq_holroyd], bins=binEdges)[0]
+            lwc_holroyd[time_ind] = np.nansum(count_dmax_liq_holroyd[time_ind, :] / sv[time_ind, :] * np.pi / 6. * binMid**3.) * 1.e6 # g m**-3
         if sum(inds_ice_holroyd)>=1:
             count_dmax_ice_holroyd[time_ind, :] = np.histogram(diameter_minR[inds_ice_holroyd], bins=binEdges)[0]
             count_darea_ice_holroyd[time_ind, :] = np.histogram(diameter_areaR[inds_ice_holroyd], bins=binEdges)[0]
         if sum(inds_liq_ar)>=1:
             count_dmax_liq_ar[time_ind, :] = np.histogram(diameter_minR[inds_liq_ar], bins=binEdges)[0]
             count_darea_liq_ar[time_ind, :] = np.histogram(diameter_areaR[inds_liq_ar], bins=binEdges)[0]
+            lwc_ar[time_ind] = np.nansum(count_dmax_liq_ar[time_ind, :] / sv[time_ind, :] * np.pi / 6. * binMid**3.) * 1.e6 # g m**-3
         if sum(inds_ice_ar)>=1:
             count_dmax_ice_ar[time_ind, :] = np.histogram(diameter_minR[inds_ice_ar], bins=binEdges)[0]
             count_darea_ice_ar[time_ind, :] = np.histogram(diameter_areaR[inds_ice_ar], bins=binEdges)[0]
@@ -262,5 +291,45 @@ def make_psd(flight_time, tas, particle_time, diameter_minR, diameter_areaR, pha
     psd['count_darea_liq_ar'] = count_darea_liq_ar
     psd['count_darea_ice_ar'] = count_darea_ice_ar
     psd['sample_volume'] = sv # cm**3
+    psd['lwc_ml'] = lwc_ml # g m**-3
+    psd['lwc_holroyd'] = lwc_holroyd # g m**-3
+    psd['lwc_ar'] = lwc_ar # g m**-3
+
+    # Save the PSDs to file if specified
+    if outfile is not None:
+        ds = xr.Dataset()
+
+        ds.coords['time'] = ('time', time)
+        ds.coords['bin_edges'] = ('bin_edges', binEdges)
+        ds.coords['bin_edges'].attrs['units'] = 'mm'
+        ds.coords['bin_width'] = ('size_bin', binWidth)
+        ds.coords['bin_width'].attrs['units'] = 'cm'
+
+        ds['count_dmax_all'] = (['time', 'size_bin'], count_dmax_all)
+        ds['count_dmax_liq_ml'] = (['time', 'size_bin'], count_dmax_liq_ml)
+        ds['count_dmax_liq_holroyd'] = (['time', 'size_bin'], count_dmax_liq_holroyd)
+        ds['count_dmax_liq_ar'] = (['time', 'size_bin'], count_dmax_liq_ar)
+        ds['count_dmax_ice_ml'] = (['time', 'size_bin'], count_dmax_ice_ml)
+        ds['count_dmax_ice_holroyd'] = (['time', 'size_bin'], count_dmax_ice_holroyd)
+        ds['count_dmax_ice_ar'] = (['time', 'size_bin'], count_dmax_ice_ar)
+        ds['count_darea_liq_ml'] = (['time', 'size_bin'], count_darea_liq_ml)
+        ds['count_darea_liq_holroyd'] = (['time', 'size_bin'], count_darea_liq_holroyd)
+        ds['count_darea_liq_ar'] = (['time', 'size_bin'], count_darea_liq_ar)
+        ds['count_darea_ice_ml'] = (['time', 'size_bin'], count_darea_ice_ml)
+        ds['count_darea_ice_holroyd'] = (['time', 'size_bin'], count_darea_ice_holroyd)
+        ds['count_darea_ice_ar'] = (['time', 'size_bin'], count_darea_ice_ar)
+        ds['sample_volume'] = (['time', 'size_bin'], sv)
+        ds['sample_volume'].attrs['units'] = 'cm**3'
+        ds['lwc_ml'] = ('time', lwc_ml)
+        ds['lwc_ml'].attrs['units'] = 'g m**-3'
+        ds['lwc_holroyd'] = ('time', lwc_holroyd)
+        ds['lwc_holroyd'].attrs['units'] = 'g m**-3'
+        ds['lwc_ar'] = ('time', lwc_ar)
+        ds['lwc_ar'].attrs['units'] = 'g m**-3'
+        ds['deadtime_flag'] = ('time', deadtime_flag)
+        ds['deadtime_flag'].attrs['description'] = '0: < 80% deadtime for period; 1: Recommend skipping period due to high dead time'
+        
+        ds.to_netcdf(outfile)
+
 
     return psd
