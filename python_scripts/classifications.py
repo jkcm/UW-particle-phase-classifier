@@ -4,6 +4,7 @@ import xarray as xr
 import numpy as np
 import pandas as pd
 import pickle
+import os
 from joblib import dump, load
 import datetime
 import glob
@@ -50,11 +51,17 @@ def make_dataset_from_processed_UIOPS_data(input_file, output_file, model_file):
     # construct dataframe for classification
     data = data.drop_dims(['bin_count', 'pos_count'])
     data_df = data.to_dataframe()
-    data_df=data_df.drop(['Date','Time','msec','Time_in_seconds','SliceCount', 'DMT_DOF_SPEC_OVERLOAD',
-                 'Particle_number_all', 'particle_time', 'particle_millisec', 'inter_arrival',
-                 'particle_microsec', 'parent_rec_num', 'particle_num', 'image_longest_y',
-                 'image_auto_reject', 'image_hollow', 'image_center_in', 'image_axis_ratio',
-                 'part_z', 'size_factor', 'holroyd_habit', 'area_hole_ratio', 'datetime'],axis=1)
+#     data_df=data_df.drop(['Date','Time','msec','Time_in_seconds','SliceCount', 'DMT_DOF_SPEC_OVERLOAD',
+#                  'Particle_number_all', 'particle_time', 'particle_millisec', 'inter_arrival',
+#                  'particle_microsec', 'parent_rec_num', 'particle_num', 'image_longest_y',
+#                  'image_auto_reject', 'image_hollow', 'image_center_in', 'image_axis_ratio',
+#                  'part_z', 'size_factor', 'holroyd_habit', 'area_hole_ratio', 'datetime'],axis=1)
+    
+    data_df = data_df[['image_length', 'image_width', 'image_area',
+       'image_max_top_edge_touching', 'image_max_bottom_edge_touching',
+       'image_touching_edge', 'image_diam_minR', 'image_diam_AreaR',
+       'image_perimeter', 'percent_shadow_area', 'edge_at_max_hole',
+       'max_hole_diameter', 'fine_detail_ratio', 'area_ratio', 'log10_iat']]
     
     
     # working on filters and flags...
@@ -122,12 +129,18 @@ def make_dataset_from_processed_UIOPS_data(input_file, output_file, model_file):
     
     
 if __name__ == "__main__":
+        #we're going to use glob to get a list of files to work on
+#     input_files = glob.glob("/home/disk/eos15/ijjhsiao/Particle_Research/data/procData/proc2DS_H.*.nc")
     
-    #we're going to use glob to get a list of files to work on
-    input_files = glob.glob("/home/disk/eos15/ijjhsiao/Particle_Research/data/procData/proc2DS_H.*.nc")
+    flights_to_classify = ['rf09', 'rf10', 'rf11', 'rf12', 'rf13', 'rf14', 'rf15']#['rf01', 'rf02', 'rf03', 'rf04', 'rf05', 'rf06', 'rf07', 'rf08',
+                           
+                            
+    
     model_file = '/home/disk/eos9/jlu43/random_forests/model.0.8751679637015776'
-    
-    for input_file in input_files:
-        flight = input_file.split('.')[-2]
-        output_file = f"/home/disk/eos9/jkcm/Data/particle/classified/UW_particle_classifications.{flight}.nc"
+        
+    for i in flights_to_classify:
+        print(i)
+        input_file = f"/home/disk/eos9/jfinlon/socrates/{i}/pbp.{i}.2DS.H.nc"
+        output_file = f"/home/disk/eos9/jkcm/Data/particle/classified/UW_particle_classifications.{i}.nc"
         make_dataset_from_processed_UIOPS_data(input_file, output_file, model_file)
+        
