@@ -19,7 +19,7 @@ def add_datetime_to_processed_data(proc_data):
     months = (proc_data.Date.values//100)%100
     year = proc_data.Date.values//10000
     datetime = np.array(
-        [np.datetime64(f'{year[i]}-{months[i]:02}-{day[i]}T{hours[i]:02}:{mins[i]:02}:{secs[i]:06.3f}') for i in range(len(year))])
+        [np.datetime64(f'{year[i]}-{months[i]:02}-{day[i]:02}T{hours[i]:02}:{mins[i]:02}:{secs[i]:06.3f}') for i in range(len(year))])
     proc_data['datetime'] = (['time'], datetime)
     return proc_data
 
