@@ -22,7 +22,9 @@
 
 import xarray as xr
 import numpy as np
+np.seterr(divide='ignore', invalid='ignore')
 import pandas as pd
+from datetime import datetime
 
 def nan_helper(array_values):
     """Helper to handle indices and logical indices of NaNs.
@@ -189,9 +191,9 @@ def make_psd(flight_time, tas, particle_time, diameter_minR, diameter_areaR, pha
     # Compute the sample area (used in sample volume calculation)
     sa = sample_area(binEdges[:-1] + np.diff(binEdges) / 2.) # [mm^2]
     
-    # Prepare the time loop and allocate PSD arrays
+    # Prepare the 1 Hz time loop and allocate PSD arrays
     dur = (flight_time[-1] - flight_time[0]) / np.timedelta64(1, 's') # flight duration [s]
-    num_times = int(dur / tres)
+    num_times = int(dur)
     
     count_dmax_all = np.zeros((num_times, len(binEdges)-1))
     count_dmax_liq_ml = np.zeros((num_times, len(binEdges)-1))
@@ -208,71 +210,133 @@ def make_psd(flight_time, tas, particle_time, diameter_minR, diameter_areaR, pha
     count_darea_liq_ar = np.zeros((num_times, len(binEdges)-1))
     count_darea_ice_ar = np.zeros((num_times, len(binEdges)-1))
     sv = np.zeros((num_times, len(binEdges)-1))
-    lwc_ml = np.zeros(num_times)
-    lwc_holroyd = np.zeros(num_times)
-    lwc_ar = np.zeros(num_times)
+    dead_time = np.zeros(num_times)
+    if tres==1:
+        lwc_ml = np.zeros(num_times)
+        lwc_holroyd = np.zeros(num_times)
+        lwc_ar = np.zeros(num_times)
+        deadtime_flag = np.zeros(num_times).astype(int)
     
-    time = np.array([], dtype='datetime64[s]')
-    deadtime_flag = np.zeros(num_times).astype(int)
-    for time_ind in range(num_times): # loop through each N-second interval
-        if np.mod(time_ind, 1000./float(tres))==0:
-            print(' Processing time {}/{}'.format(str(time_ind), str(num_times)))
-        curr_time = flight_time[0] + np.timedelta64(int(time_ind*tres), 's')
-        time = np.append(time, curr_time)
+    # Gather the unique particle times and the indices corresponding to each
+    unique_ptime, unique_ptime_inverse = np.unique(particle_time, return_inverse=True) # accepted particles
+    unique_ptime_all, unique_ptime_all_inverse = np.unique(particle_time_all, return_inverse=True) # all particles
 
-        # Compute the amount of dead time
-        time_inds = (particle_time_all>=curr_time) & (particle_time_all<curr_time+np.timedelta64(tres, 's'))
-        intArr_subset = intArr_all[time_inds] # inter arrival time of particles for current flight time iteration
+    # Find 1 Hz flight times when there are particles
+    #flttime_inds_ptime = np.where(np.isin(flt_time, time)==True)[0] # accepted particles
+    flttime_inds_ptime_all = np.where(np.isin(flight_time, particle_time_all)==True)[0] # all particles
+
+    # Analyze the 1 Hz flight times containing any (accepted or rejected) particles
+    tstart = np.datetime64(datetime.now()) # start the wall clock
+    for ind in range(len(flttime_inds_ptime_all)):
+        time_ind = flttime_inds_ptime_all[ind] # index from 1 Hz flight file
+        curr_time = flight_time[time_ind] # time from 1 Hz flight file
+        if np.mod(ind+1, 1000)==0.:
+            print('Processing {} of {} ({})'.format(str(ind+1), str(len(flttime_inds_ptime_all)),
+                                                    np.datetime_as_string(curr_time, unit='s')))
+
+        # Compute the dead time of all (accepted + rejected) particles
+        curr_ind_ptime_all = np.where(unique_ptime_all==curr_time)[0][0] # index from unique array of all particle times
+        pinds_all = np.where(unique_ptime_all_inverse==curr_ind_ptime_all)[0] # particle indices for current time
+        intArr_subset = intArr_all[pinds_all] # inter arrival time of particles for current time
         intArr_subset[intArr_subset<-10.] = intArr_subset[intArr_subset<-10.] + (2**32-1) * (1.e-5 / 170.)
         intArr_subset[intArr_subset<0.] = 0.
-        ovrld_flag_subset = ovrld_flag_all[time_inds] # overload flag of particles for current flight time iteration
-        dead_time = np.sum(intArr_subset[ovrld_flag_subset!=0.]) # add up inter arrival times of overloaded particles
-        if dead_time>0.8*np.float(tres):
-            #print(' {}: Dead time exceeds 80% of time interval. Flagging this period.'.format(np.datetime_as_string(curr_time)))
-            deadtime_flag[time_ind] = 1
-            if dead_time>float(tres):
-                dead_time = float(tres) # ensure probe dead time doesn't exceed the averaging interval
-        
+        ovrld_flag_subset = ovrld_flag_all[pinds_all] # overload flag of particles for current flight time iteration
+        dead_time[time_ind] = np.sum(intArr_subset[ovrld_flag_subset!=0.]) # sum interarrival times of overloaded particles
+        if dead_time[time_ind]>1.:
+            dead_time[time_ind] = 1. # ensure probe dead time doesn't exceed the averaging interval
+                
         # Compute the sample volume
-        tas_mean = np.mean(tas[(flight_time>=curr_time) & (flight_time<curr_time+np.timedelta64(tres, 's'))])
-        sv[time_ind, :] = (sa / 100.) * (tas_mean * 100.) * (np.float(tres)-dead_time) # cm**3
+        sv[time_ind, :] = (sa / 100.) * (tas[time_ind] * 100.) * (1.-dead_time[time_ind]) # cm**3
         
-        # Find the particles within the current time interval for each phase classification
-        inds_all = (particle_time>=curr_time) & (particle_time<curr_time+np.timedelta64(tres, 's')) # all particles irrespective of phase
-        inds_liq_ml = (particle_time>=curr_time) & (particle_time<curr_time+np.timedelta64(tres, 's')) & (phase_ml==1)
-        inds_ice_ml = (particle_time>=curr_time) & (particle_time<curr_time+np.timedelta64(tres, 's')) & (phase_ml==0)
-        inds_liq_holroyd = (particle_time>=curr_time) & (particle_time<curr_time+np.timedelta64(tres, 's')) & (phase_holroyd==1)
-        inds_ice_holroyd = (particle_time>=curr_time) & (particle_time<curr_time+np.timedelta64(tres, 's')) & (phase_holroyd==0)
-        inds_liq_ar = (particle_time>=curr_time) & (particle_time<curr_time+np.timedelta64(tres, 's')) & (phase_ar==1)
-        inds_ice_ar = (particle_time>=curr_time) & (particle_time<curr_time+np.timedelta64(tres, 's')) & (phase_ar==0)
+        # Find the accepted particles for the current time and for each phase classification
+        curr_ind_ptime = np.where(unique_ptime==curr_time)[0]
+        if len(curr_ind_ptime)==1: # at least one particle found...continue
+            pinds = np.where(unique_ptime_inverse==curr_ind_ptime[0])[0] # accepted particle indices for current time
+            diameter_minR_subset = diameter_minR[pinds]
+            diameter_areaR_subset = diameter_areaR[pinds]
+            phase_ml_subset = phase_ml[pinds]
+            phase_holroyd_subset = phase_holroyd[pinds]
+            phase_ar_subset = phase_ar[pinds]
+            
+            count_dmax_all[time_ind, :] = np.histogram(diameter_minR_subset, bins=binEdges)[0]
+            count_darea_all[time_ind, :] = np.histogram(diameter_areaR_subset, bins=binEdges)[0]
+            
+            inds_liq_ml = np.where(phase_ml_subset==1)[0]
+            if len(inds_liq_ml)>0:
+                count_dmax_liq_ml[time_ind, :] = np.histogram(diameter_minR_subset[inds_liq_ml], bins=binEdges)[0]
+                count_darea_liq_ml[time_ind, :] = np.histogram(diameter_areaR_subset[inds_liq_ml], bins=binEdges)[0]
+                lwc_ml[time_ind] = np.nansum(count_dmax_liq_ml[time_ind, :] /
+                                             sv[time_ind, :] * np.pi / 6. * binMid**3.) * 1.e6 # g m**-3
+            inds_ice_ml = np.where(phase_ml_subset==0)[0]
+            if len(inds_ice_ml)>0:
+                count_dmax_ice_ml[time_ind, :] = np.histogram(diameter_minR_subset[inds_ice_ml], bins=binEdges)[0]
+                count_darea_ice_ml[time_ind, :] = np.histogram(diameter_areaR_subset[inds_ice_ml], bins=binEdges)[0]
+            inds_liq_holroyd = np.where(phase_holroyd_subset==1)[0]
+            if len(inds_liq_holroyd)>0:
+                count_dmax_liq_holroyd[time_ind, :] = np.histogram(diameter_minR_subset[inds_liq_holroyd], bins=binEdges)[0]
+                count_darea_liq_holroyd[time_ind, :] = np.histogram(diameter_areaR_subset[inds_liq_holroyd], bins=binEdges)[0]
+                lwc_holroyd[time_ind] = np.nansum(count_dmax_liq_holroyd[time_ind, :] /
+                                                  sv[time_ind, :] * np.pi / 6. * binMid**3.) * 1.e6 # g m**-3
+            inds_ice_holroyd = np.where(phase_holroyd_subset==0)[0]
+            if len(inds_ice_holroyd)>0:
+                count_dmax_ice_holroyd[time_ind, :] = np.histogram(diameter_minR_subset[inds_ice_holroyd], bins=binEdges)[0]
+                count_darea_ice_holroyd[time_ind, :] = np.histogram(diameter_areaR_subset[inds_ice_holroyd], bins=binEdges)[0]
+            inds_liq_ar = np.where(phase_ar_subset==1)[0]
+            if len(inds_liq_ar)>0:
+                count_dmax_liq_ar[time_ind, :] = np.histogram(diameter_minR_subset[inds_liq_ar], bins=binEdges)[0]
+                count_darea_liq_ar[time_ind, :] = np.histogram(diameter_areaR_subset[inds_liq_ar], bins=binEdges)[0]
+                lwc_ar[time_ind] = np.nansum(count_dmax_liq_ar[time_ind, :] /
+                                             sv[time_ind, :] * np.pi / 6. * binMid**3.) * 1.e6 # g m**-3
+            inds_ice_ar = np.where(phase_ar_subset==0)[0]
+            if len(inds_ice_ar)>0:
+                count_dmax_ice_ar[time_ind, :] = np.histogram(diameter_minR_subset[inds_ice_ar], bins=binEdges)[0]
+                count_darea_ice_ar[time_ind, :] = np.histogram(diameter_areaR_subset[inds_ice_ar], bins=binEdges)[0]
+                
+    if tres==1: # This block takes care of some bulk quantities if tres == 1 s
+        flight_time = flight_time[:-1]
+        
+        # Compute LWC
+        lwc_ml = np.nansum(count_dmax_liq_ml /sv * np.pi / 6. * binMid**3., axis=1) * 1.e6 # g m**-3
+        lwc_holroyd = np.nansum(count_dmax_liq_holroyd /sv * np.pi / 6. * binMid**3., axis=1) * 1.e6 # g m**-3
+        lwc_ar = np.nansum(count_dmax_liq_ar /sv * np.pi / 6. * binMid**3., axis=1) * 1.e6 # g m**-3
+        
+        # Dead time flag
+        deadtime_flag[dead_time>0.8] = 1
+    else: # This block takes care of averaging if tres > 1 s
+        num_times = int(dur / tres)
+        flight_time = flight_time[::tres]
+        deadtime_flag = np.zeros(len(num_times)).astype(int)
 
-        if sum(inds_all)>=1:
-            count_dmax_all[time_ind, :] = np.histogram(diameter_minR[inds_all], bins=binEdges)[0]
-            count_darea_all[time_ind, :] = np.histogram(diameter_areaR[inds_all], bins=binEdges)[0]
-        if sum(inds_liq_ml)>=1:
-            count_dmax_liq_ml[time_ind, :] = np.histogram(diameter_minR[inds_liq_ml], bins=binEdges)[0]
-            count_darea_liq_ml[time_ind, :] = np.histogram(diameter_areaR[inds_liq_ml], bins=binEdges)[0]
-            lwc_ml[time_ind] = np.nansum(count_dmax_liq_ml[time_ind, :] / sv[time_ind, :] * np.pi / 6. * binMid**3.) * 1.e6 # g m**-3
-        if sum(inds_ice_ml)>=1:
-            count_dmax_ice_ml[time_ind, :] = np.histogram(diameter_minR[inds_ice_ml], bins=binEdges)[0]
-            count_darea_ice_ml[time_ind, :] = np.histogram(diameter_areaR[inds_ice_ml], bins=binEdges)[0]
-        if sum(inds_liq_holroyd)>=1:
-            count_dmax_liq_holroyd[time_ind, :] = np.histogram(diameter_minR[inds_liq_holroyd], bins=binEdges)[0]
-            count_darea_liq_holroyd[time_ind, :] = np.histogram(diameter_areaR[inds_liq_holroyd], bins=binEdges)[0]
-            lwc_holroyd[time_ind] = np.nansum(count_dmax_liq_holroyd[time_ind, :] / sv[time_ind, :] * np.pi / 6. * binMid**3.) * 1.e6 # g m**-3
-        if sum(inds_ice_holroyd)>=1:
-            count_dmax_ice_holroyd[time_ind, :] = np.histogram(diameter_minR[inds_ice_holroyd], bins=binEdges)[0]
-            count_darea_ice_holroyd[time_ind, :] = np.histogram(diameter_areaR[inds_ice_holroyd], bins=binEdges)[0]
-        if sum(inds_liq_ar)>=1:
-            count_dmax_liq_ar[time_ind, :] = np.histogram(diameter_minR[inds_liq_ar], bins=binEdges)[0]
-            count_darea_liq_ar[time_ind, :] = np.histogram(diameter_areaR[inds_liq_ar], bins=binEdges)[0]
-            lwc_ar[time_ind] = np.nansum(count_dmax_liq_ar[time_ind, :] / sv[time_ind, :] * np.pi / 6. * binMid**3.) * 1.e6 # g m**-3
-        if sum(inds_ice_ar)>=1:
-            count_dmax_ice_ar[time_ind, :] = np.histogram(diameter_minR[inds_ice_ar], bins=binEdges)[0]
-            count_darea_ice_ar[time_ind, :] = np.histogram(diameter_areaR[inds_ice_ar], bins=binEdges)[0]
-
+        # Reshape arrays to be num_times x tres x num_bins, then compute the sum
+        count_dmax_all = np.nansum(count_dmax_all.reshape(num_times, tres, len(binEdges)-1), axis=1)
+        count_dmax_liq_ml = np.nansum(count_dmax_liq_ml.reshape(num_times, tres, len(binEdges)-1), axis=1)
+        count_dmax_ice_ml = np.nansum(count_dmax_ice_ml.reshape(num_times, tres, len(binEdges)-1), axis=1)
+        count_dmax_liq_holroyd = np.nansum(count_dmax_liq_holroyd.reshape(num_times, tres, len(binEdges)-1), axis=1)
+        count_dmax_ice_holroyd = np.nansum(count_dmax_ice_holroyd.reshape(num_times, tres, len(binEdges)-1), axis=1)
+        count_dmax_liq_ar = np.nansum(count_dmax_liq_ar.reshape(num_times, tres, len(binEdges)-1), axis=1)
+        count_dmax_ice_ar = np.nansum(count_dmax_ice_ar.reshape(num_times, tres, len(binEdges)-1), axis=1)
+        count_darea_all = np.nansum(count_darea_all.reshape(num_times, tres, len(binEdges)-1), axis=1)
+        count_darea_liq_ml = np.nansum(count_darea_liq_ml.reshape(num_times, tres, len(binEdges)-1), axis=1)
+        count_darea_ice_ml = np.nansum(count_darea_ice_ml.reshape(num_times, tres, len(binEdges)-1), axis=1)
+        count_darea_liq_holroyd = np.nansum(count_darea_liq_holroyd.reshape(num_times, tres, len(binEdges)-1), axis=1)
+        count_darea_ice_holroyd = np.nansum(count_darea_ice_holroyd.reshape(num_times, tres, len(binEdges)-1), axis=1)
+        count_darea_liq_ar = np.nansum(count_darea_liq_ar.reshape(num_times, tres, len(binEdges)-1), axis=1)
+        count_darea_ice_ar = np.nansum(count_darea_ice_ar.reshape(num_times, tres, len(binEdges)-1), axis=1)
+        sv = np.nansum(sv.reshape(num_times, tres, len(binEdges)-1), axis=1)
+        dead_time = np.nansum(dead_time.reshape(num_times, tres), axis=1)
+        
+        # Compute LWC
+        lwc_ml = np.nansum(count_dmax_liq_ml /sv * np.pi / 6. * binMid**3., axis=1) * 1.e6 # g m**-3
+        lwc_holroyd = np.nansum(count_dmax_liq_holroyd /sv * np.pi / 6. * binMid**3., axis=1) * 1.e6 # g m**-3
+        lwc_ar = np.nansum(count_dmax_liq_ar /sv * np.pi / 6. * binMid**3., axis=1) * 1.e6 # g m**-3
+        
+        # Dead time flag
+        deadtime_flag[dead_time>0.8] = 1
+    
+    print('\nElapsed time: {} seconds'.format((np.datetime64(datetime.now())-tstart)/np.timedelta64(1, 's')))
+    
     # Save variables to object
-    psd['time'] = time
+    psd['time'] = flight_time
     psd['bin_edges'] = binEdges # mm
     psd['bin_width'] = binWidth # cm
     psd['deadtime_flag'] = deadtime_flag # 0: < 80% deadtime for period; 1: Recommend skipping period due to high dead time
@@ -299,7 +363,7 @@ def make_psd(flight_time, tas, particle_time, diameter_minR, diameter_areaR, pha
     if outfile is not None:
         ds = xr.Dataset()
 
-        ds.coords['time'] = ('time', time)
+        ds.coords['time'] = ('time', flight_time)
         ds.coords['bin_edges'] = ('bin_edges', binEdges)
         ds.coords['bin_edges'].attrs['units'] = 'mm'
         ds.coords['bin_width'] = ('size_bin', binWidth)
