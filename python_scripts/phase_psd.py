@@ -101,8 +101,7 @@ def load_pbp(pbpfilename, phasefilename, Dmin=0.05, Dmax=3.2, iatThresh=1.e-6):
         phase_ml: particle phase determined by the random forest model [0: ice; 1: liquid]
         phase_holroyd: particle phase determined by the Holroyd (1987) scheme [0: ice; 1: liquid]
         phase_ar: particle phase determined by an area ratio = 0.4 threshold [0: ice; 1: liquid]
-        prob_ice_ml: probability of a particle being ice as classified by the random forest model [0-1]
-        prob_liq_ml: probability of a particle being liquid as classified by the random forest model [0-1]
+        prob_ml: confidence in the random forest model that phase classification is correct [0-1]
         time_all: time of all particles [numpy.datetime64]
         intArr: particle interarrival time [s]
         ovrld_flag: particle overload flag [0: no dead time associated with partle; else: dead time]
@@ -118,10 +117,6 @@ def load_pbp(pbpfilename, phasefilename, Dmin=0.05, Dmax=3.2, iatThresh=1.e-6):
     time = np.array(time_str, dtype='datetime64[ns]')
     diam_minR = ds['image_diam_minR'].values # diameter of minimum enclosing circle (mm)
     diam_areaR = ds['image_diam_AreaR'].values # area equivalent diameter (mm)
-    #area = ds['image_area'].values
-    #ar = area / (np.pi / 4 * diam_minR**2)
-    #rej = ds['image_auto_reject'].values.astype(int)
-    #centerin = ds['image_center_in'].values
     tempTime = ds['Time_in_seconds'].values # time in TAS clock cycles
     intArr = np.zeros(len(tempTime))
     intArr[1:] = np.diff(tempTime) # time difference between particles
@@ -136,14 +131,6 @@ def load_pbp(pbpfilename, phasefilename, Dmin=0.05, Dmax=3.2, iatThresh=1.e-6):
     flag_ml = ds2['UW_flag'].values # 0: good, classifiable partile; else: rejected, not classified
     phase_holroyd = ds2['Holroyd_phase'].values # [1:liq, 0:ice]
     phase_ar = ds2['AR_threshold_phase'].values # [1:liq, 0:ice]
-
-    # Determine the probability of a particle being liquid/ice based on the ML classification
-    prob_liq_ml = np.zeros(len(prob_ml))
-    prob_ice_ml = np.zeros(len(prob_ml))
-    prob_liq_ml[phase_ml==1] = prob_ml[phase_ml==1.]
-    prob_ice_ml[phase_ml==1] = 1. - prob_ml[phase_ml==1.]
-    prob_ice_ml[phase_ml==0] = prob_ml[phase_ml==0.]
-    prob_liq_ml[phase_ml==0] = 1. - prob_ml[phase_ml==0.]
     
     print('Removing the rejected particles.')
     time_all = np.copy(time) # first copy the time of all particles (for dead time calc in make_psd)
@@ -157,11 +144,10 @@ def load_pbp(pbpfilename, phasefilename, Dmin=0.05, Dmax=3.2, iatThresh=1.e-6):
     phase_holroyd = phase_holroyd[good_inds]
     phase_ar = phase_ar[good_inds]
     
-    return (time, diam_minR, diam_areaR, phase_ml, phase_holroyd, phase_ar, prob_ice_ml, prob_liq_ml,
-            time_all, intArr, ovrld_flag)
+    return (time, diam_minR, diam_areaR, phase_ml, phase_holroyd, phase_ar, prob_ml, time_all, intArr, ovrld_flag)
 
-def make_psd(flight_time, tas, particle_time, diameter_minR, diameter_areaR, phase_ml, phase_holroyd, phase_ar,
-             particle_time_all, intArr_all, ovrld_flag_all, binEdges=None, tres=1, outfile=None):
+def make_psd(flight_time, tas, particle_time, diameter_minR, diameter_areaR, phase_ml, prob_ml, phase_holroyd, phase_ar,
+             particle_time_all, intArr_all, ovrld_flag_all, bootstrap=False, binEdges=None, tres=1, outfile=None):
     '''
     Inputs:
         flight_time: flight time [numpy.datetime64]
@@ -170,11 +156,13 @@ def make_psd(flight_time, tas, particle_time, diameter_minR, diameter_areaR, pha
         diameter_minR: diameter of a minimum enclosing circle for accepted particles [mm]
         diameter_areaR: area equivalent diameter for accepted particles [mm]
         phase_ml: particle phase determined by the machine learning model [0: ice; 1: liquid]
+        prob_ml: model confidence that phase classification is correct [0-1; used if bootstrap==True]
         phase_holroyd: particle phase determined by the Holroyd (1987) scheme [0: ice; 1: liquid]
         phase_ar: particle phase determined by an area ratio = 0.4 threshold [0: ice; 1: liquid]
         particle_time_all: time of all particles [numpy.datetime64]
         intArr_all: particle interarrival time [s]
         ovrld_flag_all: particle overload flag [0: no dead time associated with partle; else: dead time]
+        bootstrap: boolean [True/False; False is default] to bootstrap phase PSDs and generate uncertainty metrics
         binEdges: array of size bin endpoints to make PSDs [None: use default array; mm]
         tres: temporal resolution for PSDs [s; default = 1 s]
         outfile: full file path to save the PSD data [None: skip saving; str]
@@ -255,6 +243,7 @@ def make_psd(flight_time, tas, particle_time, diameter_minR, diameter_areaR, pha
             diameter_minR_subset = diameter_minR[pinds]
             diameter_areaR_subset = diameter_areaR[pinds]
             phase_ml_subset = phase_ml[pinds]
+            prob_ml_subset = prob_ml[pinds] # TODO: @jkcm apply bootstrapping below using this prob var
             phase_holroyd_subset = phase_holroyd[pinds]
             phase_ar_subset = phase_ar[pinds]
             
