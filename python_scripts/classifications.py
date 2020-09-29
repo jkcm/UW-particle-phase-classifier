@@ -132,11 +132,12 @@ if __name__ == "__main__":
         #we're going to use glob to get a list of files to work on
 #     input_files = glob.glob("/home/disk/eos15/ijjhsiao/Particle_Research/data/procData/proc2DS_H.*.nc")
     
-    flights_to_classify = ['rf09', 'rf10', 'rf11', 'rf12', 'rf13', 'rf14', 'rf15']#['rf01', 'rf02', 'rf03', 'rf04', 'rf05', 'rf06', 'rf07', 'rf08',
+    flights_to_classify = ['rf01', 'rf02', 'rf03', 'rf04', 'rf05', 'rf06', 'rf07', 'rf08', 'rf09', 'rf10', 'rf11', 'rf12', 'rf13', 'rf14', 'rf15']
                            
                             
     
-    model_file = '/home/disk/eos9/jlu43/random_forests/model.0.8751679637015776'
+#     model_file = '/home/disk/eos9/jlu43/random_forests/model.0.8751679637015776'
+    model_file = '/home/disk/eos9/jlu43/random_forests/model.0.9500382144075897'
         
     for i in flights_to_classify:
         print(i)
