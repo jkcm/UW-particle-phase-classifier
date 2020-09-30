@@ -295,8 +295,13 @@ def make_psd(flight_time, tas, particle_time, diameter_minR, diameter_areaR, pha
                 phase_ml_subset_bs = bootstrap_ml_classifications(phase_ml_subset, prob_ml_subset, n_iters=n_bootstrap)
                 # jkcm: this is now len(subset) x n_bootstrap
                 for i in range(n_bootstrap):
-                    phase_ml_subset = phase_ml_subset_bs[:,i] # this is now just one realization
-                    assert phase_ml_subset.shape == prob_ml_subset.shape # jkcm: just a test, can delete
+                    phase_ml_subset = phase_ml_subset_bs[i,:] # this is now just one realization
+                    try:
+                        assert phase_ml_subset.shape == prob_ml_subset.shape # jkcm: just a test, can delete
+                    except AssertionError as e:
+                        print(phase_ml_subset.shape)
+                        print(prob_ml_subset.shape)
+                        raise e
                     inds_liq_ml = np.where(phase_ml_subset==1)[0]
                     if len(inds_liq_ml)>0:
                         count_dmax_liq_ml[time_ind, :, i] = np.histogram(diameter_minR_subset[inds_liq_ml], bins=binEdges)[0]
