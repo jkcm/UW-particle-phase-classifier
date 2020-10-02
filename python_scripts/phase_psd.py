@@ -151,7 +151,7 @@ def load_pbp(pbpfilename, phasefilename, Dmin=0.05, Dmax=3.2, iatThresh=1.e-6):
     
     print('Removing the rejected particles.')
     time_all = np.copy(time) # first copy the time of all particles (for dead time calc in make_psd)
-    good_inds = (flag_ml==0) # index the good particles based on the ML model flag
+    good_inds = (flag_ml==0) & (intArr>=iatThresh) # index the good particles based on the ML model flag and inter arrival threshold
     #good_inds = (centerin==1) & (ar>=0.2) & (intArr>=iatThresh) & ((rej==48) | (rej==104) | (rej==72)) # flag based on standard UIOOPS criteria
     time = time[good_inds]
     diam_minR = diam_minR[good_inds]
@@ -183,7 +183,6 @@ def make_psd(flight_time, tas, particle_time, diameter_minR, diameter_areaR, pha
         binEdges: array of size bin endpoints to make PSDs [None: use default array; mm]
         tres: temporal resolution for PSDs [s; default = 1 s]
         outfile: full file path to save the PSD data [None: skip saving; str]
-    # TODO: Add any of the phase probability data? e.g., for uncertainty estimates
     '''
     psd = {}
     n_bootstrap=100
@@ -199,7 +198,7 @@ def make_psd(flight_time, tas, particle_time, diameter_minR, diameter_areaR, pha
     
     # Prepare the 1 Hz time loop and allocate PSD arrays
     dur = (flight_time[-1] - flight_time[0]) / np.timedelta64(1, 's') # flight duration [s]
-    num_times = int(dur)
+    num_times = int(dur) + 1 # include the last second of flight
     
     count_dmax_all = np.zeros((num_times, len(binEdges)-1))
 
@@ -285,14 +284,14 @@ def make_psd(flight_time, tas, particle_time, diameter_minR, diameter_areaR, pha
                 if len(inds_liq_ml)>0:
                     count_dmax_liq_ml[time_ind, :] = np.histogram(diameter_minR_subset[inds_liq_ml], bins=binEdges)[0]
                     count_darea_liq_ml[time_ind, :] = np.histogram(diameter_areaR_subset[inds_liq_ml], bins=binEdges)[0]
-                    lwc_ml[time_ind] = np.nansum(count_dmax_liq_ml[time_ind, :] /
-                                                 sv[time_ind, :] * np.pi / 6. * binMid**3.) * 1.e6 # g m**-3
+                    #lwc_ml[time_ind] = np.nansum(count_dmax_liq_ml[time_ind, :] /
+                                                 #sv[time_ind, :] * np.pi / 6. * binMid**3.) * 1.e6 # g m**-3
                 inds_ice_ml = np.where(phase_ml_subset==0)[0]
                 if len(inds_ice_ml)>0:
                     count_dmax_ice_ml[time_ind, :] = np.histogram(diameter_minR_subset[inds_ice_ml], bins=binEdges)[0]
                     count_darea_ice_ml[time_ind, :] = np.histogram(diameter_areaR_subset[inds_ice_ml], bins=binEdges)[0]
             else:
-                phase_ml_subset_bs = bootstrap_ml_classifications(phase_ml_subset, prob_ml_subset, n_iters=n_bootstrap)
+                phase_ml_subset_bs = bootstrap_ml_classifications(phase_ml_subset, prob_ml_subset, n_iters=n_bootstrap) # TODO: @jkcm - routine returns shape (100,)
                 # jkcm: this is now len(subset) x n_bootstrap
                 for i in range(n_bootstrap):
                     phase_ml_subset = phase_ml_subset_bs[i,:] # this is now just one realization
@@ -306,8 +305,8 @@ def make_psd(flight_time, tas, particle_time, diameter_minR, diameter_areaR, pha
                     if len(inds_liq_ml)>0:
                         count_dmax_liq_ml[time_ind, :, i] = np.histogram(diameter_minR_subset[inds_liq_ml], bins=binEdges)[0]
                         count_darea_liq_ml[time_ind, :, i] = np.histogram(diameter_areaR_subset[inds_liq_ml], bins=binEdges)[0]
-                        lwc_ml[time_ind, i] = np.nansum(count_dmax_liq_ml[time_ind, :] /
-                                                     sv[time_ind, :] * np.pi / 6. * binMid**3.) * 1.e6 # g m**-3
+                        #lwc_ml[time_ind, i] = np.nansum(count_dmax_liq_ml[time_ind, :] /
+                                                     #sv[time_ind, :] * np.pi / 6. * binMid**3.) * 1.e6 # g m**-3
                     inds_ice_ml = np.where(phase_ml_subset==0)[0]
                     if len(inds_ice_ml)>0:
                         count_dmax_ice_ml[time_ind, :, i] = np.histogram(diameter_minR_subset[inds_ice_ml], bins=binEdges)[0]
@@ -316,8 +315,8 @@ def make_psd(flight_time, tas, particle_time, diameter_minR, diameter_areaR, pha
             if len(inds_liq_holroyd)>0:
                 count_dmax_liq_holroyd[time_ind, :] = np.histogram(diameter_minR_subset[inds_liq_holroyd], bins=binEdges)[0]
                 count_darea_liq_holroyd[time_ind, :] = np.histogram(diameter_areaR_subset[inds_liq_holroyd], bins=binEdges)[0]
-                lwc_holroyd[time_ind] = np.nansum(count_dmax_liq_holroyd[time_ind, :] /
-                                                  sv[time_ind, :] * np.pi / 6. * binMid**3.) * 1.e6 # g m**-3
+                #lwc_holroyd[time_ind] = np.nansum(count_dmax_liq_holroyd[time_ind, :] /
+                                                  #sv[time_ind, :] * np.pi / 6. * binMid**3.) * 1.e6 # g m**-3
             inds_ice_holroyd = np.where(phase_holroyd_subset==0)[0]
             if len(inds_ice_holroyd)>0:
                 count_dmax_ice_holroyd[time_ind, :] = np.histogram(diameter_minR_subset[inds_ice_holroyd], bins=binEdges)[0]
@@ -326,21 +325,14 @@ def make_psd(flight_time, tas, particle_time, diameter_minR, diameter_areaR, pha
             if len(inds_liq_ar)>0:
                 count_dmax_liq_ar[time_ind, :] = np.histogram(diameter_minR_subset[inds_liq_ar], bins=binEdges)[0]
                 count_darea_liq_ar[time_ind, :] = np.histogram(diameter_areaR_subset[inds_liq_ar], bins=binEdges)[0]
-                lwc_ar[time_ind] = np.nansum(count_dmax_liq_ar[time_ind, :] /
-                                             sv[time_ind, :] * np.pi / 6. * binMid**3.) * 1.e6 # g m**-3
+                #lwc_ar[time_ind] = np.nansum(count_dmax_liq_ar[time_ind, :] /
+                                             #sv[time_ind, :] * np.pi / 6. * binMid**3.) * 1.e6 # g m**-3
             inds_ice_ar = np.where(phase_ar_subset==0)[0]
             if len(inds_ice_ar)>0:
                 count_dmax_ice_ar[time_ind, :] = np.histogram(diameter_minR_subset[inds_ice_ar], bins=binEdges)[0]
                 count_darea_ice_ar[time_ind, :] = np.histogram(diameter_areaR_subset[inds_ice_ar], bins=binEdges)[0]
                 
     if tres==1: # This block takes care of some bulk quantities if tres == 1 s
-        flight_time = flight_time[:-1]
-        
-        # Compute LWC
-        lwc_ml = np.nansum(count_dmax_liq_ml /sv * np.pi / 6. * binMid**3., axis=1) * 1.e6 # g m**-3 # jkcm: isn't this redundant?
-        lwc_holroyd = np.nansum(count_dmax_liq_holroyd /sv * np.pi / 6. * binMid**3., axis=1) * 1.e6 # g m**-3
-        lwc_ar = np.nansum(count_dmax_liq_ar /sv * np.pi / 6. * binMid**3., axis=1) * 1.e6 # g m**-3
-        
         # Dead time flag
         deadtime_flag[dead_time>0.8] = 1
     else: # This block takes care of averaging if tres > 1 s
@@ -372,13 +364,6 @@ def make_psd(flight_time, tas, particle_time, diameter_minR, diameter_areaR, pha
             count_dmax_ice_ml = np.nansum(count_dmax_ice_ml.reshape(num_times, tres, len(binEdges)-1, n_bootstrap), axis=1)
             count_darea_liq_ml = np.nansum(count_darea_liq_ml.reshape(num_times, tres, len(binEdges)-1, n_bootstrap), axis=1)
             count_darea_ice_ml = np.nansum(count_darea_ice_ml.reshape(num_times, tres, len(binEdges)-1, n_bootstrap), axis=1)
-
-                    
-        # Compute LWC
-        lwc_ml = np.nansum(count_dmax_liq_ml /sv * np.pi / 6. * binMid**3., axis=1) * 1.e6 # g m**-3
-        lwc_holroyd = np.nansum(count_dmax_liq_holroyd /sv * np.pi / 6. * binMid**3., axis=1) * 1.e6 # g m**-3
-        lwc_ar = np.nansum(count_dmax_liq_ar /sv * np.pi / 6. * binMid**3., axis=1) * 1.e6 # g m**-3
-        
         # Dead time flag
         deadtime_flag[dead_time>0.8] = 1
         
@@ -419,6 +404,11 @@ def make_psd(flight_time, tas, particle_time, diameter_minR, diameter_areaR, pha
         count_darea_liq_ml = count_darea_liq_ml_mean
         count_darea_ice_ml = count_darea_ice_ml_mean
     
+    # Compute LWC
+    lwc_ml = np.nansum(count_dmax_liq_ml /sv * np.pi / 6. * binMid**3., axis=1) * 1.e6 # g m**-3
+    lwc_holroyd = np.nansum(count_dmax_liq_holroyd /sv * np.pi / 6. * binMid**3., axis=1) * 1.e6 # g m**-3
+    lwc_ar = np.nansum(count_dmax_liq_ar /sv * np.pi / 6. * binMid**3., axis=1) * 1.e6 # g m**-3
+
     print('\nElapsed time: {} seconds'.format((np.datetime64(datetime.now())-tstart)/np.timedelta64(1, 's')))
     
     # Save variables to object
@@ -482,8 +472,8 @@ def make_psd(flight_time, tas, particle_time, diameter_minR, diameter_areaR, pha
         ds.coords['bin_width'] = ('size_bin', binWidth)
         ds.coords['bin_width'].attrs['units'] = 'cm'
 
-        if bootstrap:
-            count_dmax_liq_ml
+        #if bootstrap: # joefinlon: do we need this block?
+            #count_dmax_liq_ml
         
         
         ds['count_dmax_all'] = (['time', 'size_bin'], count_dmax_all)
