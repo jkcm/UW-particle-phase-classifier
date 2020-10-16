@@ -75,7 +75,7 @@ def bootstrap_ml_classifications(cats, certs, n_iters=1):
     """
     flipped_certs = certs.copy()
     flipped_certs[~cats.astype(bool)] = 1 - flipped_certs[~cats.astype(bool)]
-    flipped_certs = np.tile(flipped_certs, (n_iters,1)).squeeze()
+    flipped_certs = np.tile(flipped_certs, (n_iters,1)) # jkcm: I had a .squeeze() in here, for some idiot reason.
     
     realizations = (np.random.rand(*flipped_certs.shape) < flipped_certs).astype(int)
     return realizations
@@ -273,7 +273,7 @@ def make_psd(flight_time, tas, particle_time, diameter_minR, diameter_areaR, pha
             diameter_minR_subset = diameter_minR[pinds]
             diameter_areaR_subset = diameter_areaR[pinds]
             phase_ml_subset = phase_ml[pinds]
-            prob_ml_subset = prob_ml[pinds] # TODO: @jkcm apply bootstrapping below using this prob var
+            prob_ml_subset = prob_ml[pinds]to
             phase_holroyd_subset = phase_holroyd[pinds]
             phase_ar_subset = phase_ar[pinds]
             
@@ -291,7 +291,7 @@ def make_psd(flight_time, tas, particle_time, diameter_minR, diameter_areaR, pha
                     count_dmax_ice_ml[time_ind, :] = np.histogram(diameter_minR_subset[inds_ice_ml], bins=binEdges)[0]
                     count_darea_ice_ml[time_ind, :] = np.histogram(diameter_areaR_subset[inds_ice_ml], bins=binEdges)[0]
             else:
-                phase_ml_subset_bs = bootstrap_ml_classifications(phase_ml_subset, prob_ml_subset, n_iters=n_bootstrap) # TODO: @jkcm - routine returns shape (100,)
+                phase_ml_subset_bs = bootstrap_ml_classifications(phase_ml_subset, prob_ml_subset, n_iters=n_bootstrap)
                 # jkcm: this is now len(subset) x n_bootstrap
                 for i in range(n_bootstrap):
                     phase_ml_subset = phase_ml_subset_bs[i,:] # this is now just one realization
