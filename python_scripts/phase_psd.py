@@ -273,7 +273,7 @@ def make_psd(flight_time, tas, particle_time, diameter_minR, diameter_areaR, pha
             diameter_minR_subset = diameter_minR[pinds]
             diameter_areaR_subset = diameter_areaR[pinds]
             phase_ml_subset = phase_ml[pinds]
-            prob_ml_subset = prob_ml[pinds]to
+            prob_ml_subset = prob_ml[pinds]
             phase_holroyd_subset = phase_holroyd[pinds]
             phase_ar_subset = phase_ar[pinds]
             
