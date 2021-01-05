@@ -4,3 +4,6 @@ __pycache__/
 *$py.class
 
 .DS_Store
+*/.ipynb_checkpoints/*
+python_scripts/*_sandbox.ipynb
+.gitignore
