@@ -188,8 +188,10 @@ def make_psd(flight_time, tas, particle_time, diameter_minR, diameter_areaR, pha
     n_bootstrap=30
     
     if binEdges is None: # assign default bin edges
-        binEdges = np.array([50., 75., 100., 125., 150., 200., 250., 300., 350., 400., 475., 550., 625., 700., 800., 900., 1000.,
-        1200., 1400., 1600., 1800., 2000., 2200., 2400., 2600., 2800., 3000., 3200.]) / 1000. # [mm]
+#         binEdges = np.array([50., 75., 100., 125., 150., 200., 250., 300., 350., 400., 475., 550., 625., 700., 800., 900., 1000.,
+#         1200., 1400., 1600., 1800., 2000., 2200., 2400., 2600., 2800., 3000., 3200.]) / 1000. # [mm]
+        binEdges=np.logspace(np.log10(56.4),np.log10(3200))/1000
+
     binWidth = np.diff(binEdges) / 10. # [cm]
     binMid = binEdges[:-1] / 10. + binWidth / 2. # bin midpoint for LWC calculation [cm]
 
@@ -213,17 +215,17 @@ def make_psd(flight_time, tas, particle_time, diameter_minR, diameter_areaR, pha
     count_darea_liq_ar = np.zeros((num_times, len(binEdges)-1))
     count_darea_ice_ar = np.zeros((num_times, len(binEdges)-1))
     
-    if not bootstrap: # jkcm: original code runs if no bootstrap
-        count_dmax_liq_ml = np.zeros((num_times, len(binEdges)-1))
-        count_dmax_ice_ml = np.zeros((num_times, len(binEdges)-1))
-        count_darea_liq_ml = np.zeros((num_times, len(binEdges)-1))
-        count_darea_ice_ml = np.zeros((num_times, len(binEdges)-1))
-    else: # jkcm: adding a dimension for bootstrapped counts
+#     if not bootstrap: # jkcm: original code runs if no bootstrap
+    count_dmax_liq_ml = np.zeros((num_times, len(binEdges)-1))
+    count_dmax_ice_ml = np.zeros((num_times, len(binEdges)-1))
+    count_darea_liq_ml = np.zeros((num_times, len(binEdges)-1))
+    count_darea_ice_ml = np.zeros((num_times, len(binEdges)-1))
+    if bootstrap: # jkcm: adding a dimension for bootstrapped counts
         print(f'bootstrapping with {n_bootstrap} samples...')
-        count_dmax_liq_ml = np.zeros((num_times, len(binEdges)-1, n_bootstrap))
-        count_dmax_ice_ml = np.zeros((num_times, len(binEdges)-1, n_bootstrap))
-        count_darea_liq_ml = np.zeros((num_times, len(binEdges)-1, n_bootstrap))
-        count_darea_ice_ml = np.zeros((num_times, len(binEdges)-1, n_bootstrap))
+        count_dmax_liq_ml_bs = np.zeros((num_times, len(binEdges)-1, n_bootstrap))
+        count_dmax_ice_ml_bs = np.zeros((num_times, len(binEdges)-1, n_bootstrap))
+        count_darea_liq_ml_bs = np.zeros((num_times, len(binEdges)-1, n_bootstrap))
+        count_darea_ice_ml_bs = np.zeros((num_times, len(binEdges)-1, n_bootstrap))
         
         
     sv = np.zeros((num_times, len(binEdges)-1))
@@ -234,7 +236,7 @@ def make_psd(flight_time, tas, particle_time, diameter_minR, diameter_areaR, pha
         lwc_ar = np.zeros(num_times)
         deadtime_flag = np.zeros(num_times).astype(int)
         if bootstrap: # jkcm: have to also include a hook in here
-            lwc_ml = np.zeros((num_times, n_bootstrap))
+            lwc_ml_bs = np.zeros((num_times, n_bootstrap))
     
     # Gather the unique particle times and the indices corresponding to each
     unique_ptime, unique_ptime_inverse = np.unique(particle_time, return_inverse=True) # accepted particles
@@ -280,18 +282,18 @@ def make_psd(flight_time, tas, particle_time, diameter_minR, diameter_areaR, pha
             
             count_dmax_all[time_ind, :] = np.histogram(diameter_minR_subset, bins=binEdges)[0]
             count_darea_all[time_ind, :] = np.histogram(diameter_areaR_subset, bins=binEdges)[0]
-            if not bootstrap: #jkcm: if bootstrap==False, continue as before, treating phase_ml_subset as deterministic
-                inds_liq_ml = np.where(phase_ml_subset==1)[0]
-                if len(inds_liq_ml)>0:
-                    count_dmax_liq_ml[time_ind, :] = np.histogram(diameter_minR_subset[inds_liq_ml], bins=binEdges)[0]
-                    count_darea_liq_ml[time_ind, :] = np.histogram(diameter_areaR_subset[inds_liq_ml], bins=binEdges)[0]
-                    #lwc_ml[time_ind] = np.nansum(count_dmax_liq_ml[time_ind, :] /
-                                                 #sv[time_ind, :] * np.pi / 6. * binMid**3.) * 1.e6 # g m**-3
-                inds_ice_ml = np.where(phase_ml_subset==0)[0]
-                if len(inds_ice_ml)>0:
-                    count_dmax_ice_ml[time_ind, :] = np.histogram(diameter_minR_subset[inds_ice_ml], bins=binEdges)[0]
-                    count_darea_ice_ml[time_ind, :] = np.histogram(diameter_areaR_subset[inds_ice_ml], bins=binEdges)[0]
-            else:
+#             if not bootstrap: #jkcm: if bootstrap==False, continue as before, treating phase_ml_subset as deterministic
+            inds_liq_ml = np.where(phase_ml_subset==1)[0]
+            if len(inds_liq_ml)>0:
+                count_dmax_liq_ml[time_ind, :] = np.histogram(diameter_minR_subset[inds_liq_ml], bins=binEdges)[0]
+                count_darea_liq_ml[time_ind, :] = np.histogram(diameter_areaR_subset[inds_liq_ml], bins=binEdges)[0]
+                #lwc_ml[time_ind] = np.nansum(count_dmax_liq_ml[time_ind, :] /
+                                             #sv[time_ind, :] * np.pi / 6. * binMid**3.) * 1.e6 # g m**-3
+            inds_ice_ml = np.where(phase_ml_subset==0)[0]
+            if len(inds_ice_ml)>0:
+                count_dmax_ice_ml[time_ind, :] = np.histogram(diameter_minR_subset[inds_ice_ml], bins=binEdges)[0]
+                count_darea_ice_ml[time_ind, :] = np.histogram(diameter_areaR_subset[inds_ice_ml], bins=binEdges)[0]
+            if bootstrap:
                 phase_ml_subset_bs = bootstrap_ml_classifications(phase_ml_subset, prob_ml_subset, n_iters=n_bootstrap)
                 # jkcm: this is now len(subset) x n_bootstrap
                 for i in range(n_bootstrap):
@@ -304,14 +306,15 @@ def make_psd(flight_time, tas, particle_time, diameter_minR, diameter_areaR, pha
                         raise e
                     inds_liq_ml = np.where(phase_ml_subset==1)[0]
                     if len(inds_liq_ml)>0:
-                        count_dmax_liq_ml[time_ind, :, i] = np.histogram(diameter_minR_subset[inds_liq_ml], bins=binEdges)[0]
-                        count_darea_liq_ml[time_ind, :, i] = np.histogram(diameter_areaR_subset[inds_liq_ml], bins=binEdges)[0]
+                        count_dmax_liq_ml_bs[time_ind, :, i] = np.histogram(diameter_minR_subset[inds_liq_ml], bins=binEdges)[0]
+                        count_darea_liq_ml_bs[time_ind, :, i] = np.histogram(diameter_areaR_subset[inds_liq_ml], bins=binEdges)[0]
                         #lwc_ml[time_ind, i] = np.nansum(count_dmax_liq_ml[time_ind, :] /
                                                      #sv[time_ind, :] * np.pi / 6. * binMid**3.) * 1.e6 # g m**-3
                     inds_ice_ml = np.where(phase_ml_subset==0)[0]
                     if len(inds_ice_ml)>0:
-                        count_dmax_ice_ml[time_ind, :, i] = np.histogram(diameter_minR_subset[inds_ice_ml], bins=binEdges)[0]
-                        count_darea_ice_ml[time_ind, :, i] = np.histogram(diameter_areaR_subset[inds_ice_ml], bins=binEdges)[0]
+                        count_dmax_ice_ml_bs[time_ind, :, i] = np.histogram(diameter_minR_subset[inds_ice_ml], bins=binEdges)[0]
+                        count_darea_ice_ml_bs[time_ind, :, i] = np.histogram(diameter_areaR_subset[inds_ice_ml], bins=binEdges)[0]
+            
             inds_liq_holroyd = np.where(phase_holroyd_subset==1)[0]
             if len(inds_liq_holroyd)>0:
                 count_dmax_liq_holroyd[time_ind, :] = np.histogram(diameter_minR_subset[inds_liq_holroyd], bins=binEdges)[0]
@@ -355,64 +358,60 @@ def make_psd(flight_time, tas, particle_time, diameter_minR, diameter_areaR, pha
         count_darea_ice_ar = np.nansum(count_darea_ice_ar.reshape(num_times, tres, len(binEdges)-1), axis=1)
         sv = np.nansum(sv.reshape(num_times, tres, len(binEdges)-1), axis=1)
         dead_time = np.nansum(dead_time.reshape(num_times, tres), axis=1)
-        if not bootstrap: # jkcm: moved these down here for tidiness
-            count_dmax_liq_ml = np.nansum(count_dmax_liq_ml.reshape(num_times, tres, len(binEdges)-1), axis=1)
-            count_dmax_ice_ml = np.nansum(count_dmax_ice_ml.reshape(num_times, tres, len(binEdges)-1), axis=1)
-            count_darea_liq_ml = np.nansum(count_darea_liq_ml.reshape(num_times, tres, len(binEdges)-1), axis=1)
-            count_darea_ice_ml = np.nansum(count_darea_ice_ml.reshape(num_times, tres, len(binEdges)-1), axis=1)
-        else: # jkcm: OK now it's getting complicated
-            count_dmax_liq_ml = np.nansum(count_dmax_liq_ml.reshape(num_times, tres, len(binEdges)-1, n_bootstrap), axis=1)
-            count_dmax_ice_ml = np.nansum(count_dmax_ice_ml.reshape(num_times, tres, len(binEdges)-1, n_bootstrap), axis=1)
-            count_darea_liq_ml = np.nansum(count_darea_liq_ml.reshape(num_times, tres, len(binEdges)-1, n_bootstrap), axis=1)
-            count_darea_ice_ml = np.nansum(count_darea_ice_ml.reshape(num_times, tres, len(binEdges)-1, n_bootstrap), axis=1)
+#         if not bootstrap: # jkcm: moved these down here for tidiness
+        count_dmax_liq_ml = np.nansum(count_dmax_liq_ml.reshape(num_times, tres, len(binEdges)-1), axis=1)
+        count_dmax_ice_ml = np.nansum(count_dmax_ice_ml.reshape(num_times, tres, len(binEdges)-1), axis=1)
+        count_darea_liq_ml = np.nansum(count_darea_liq_ml.reshape(num_times, tres, len(binEdges)-1), axis=1)
+        count_darea_ice_ml = np.nansum(count_darea_ice_ml.reshape(num_times, tres, len(binEdges)-1), axis=1)
+        if bootstrap: # jkcm: OK now it's getting complicated
+            count_dmax_liq_ml_bs = np.nansum(count_dmax_liq_ml_bs.reshape(num_times, tres, len(binEdges)-1, n_bootstrap), axis=1)
+            count_dmax_ice_ml_bs = np.nansum(count_dmax_ice_ml_bs.reshape(num_times, tres, len(binEdges)-1, n_bootstrap), axis=1)
+            count_darea_liq_ml_bs = np.nansum(count_darea_liq_ml_bs.reshape(num_times, tres, len(binEdges)-1, n_bootstrap), axis=1)
+            count_darea_ice_ml_bs = np.nansum(count_darea_ice_ml_bs.reshape(num_times, tres, len(binEdges)-1, n_bootstrap), axis=1)
         # Dead time flag
         deadtime_flag[dead_time>0.8] = 1
         
     if bootstrap:  # this is where we get all our pretty statistics
                     
         print('bootstrapping summary stats...')
-        count_dmax_liq_ml_mean = np.nanmean(count_dmax_liq_ml, axis=-1)
-        count_dmax_ice_ml_mean = np.nanmean(count_dmax_ice_ml, axis=-1)
-        count_darea_liq_ml_mean = np.nanmean(count_darea_liq_ml, axis=-1)
-        count_darea_ice_ml_mean = np.nanmean(count_darea_ice_ml, axis=-1)
-        count_dmax_liq_ml_median = np.nanmedian(count_dmax_liq_ml, axis=-1)
-        count_dmax_ice_ml_median = np.nanmedian(count_dmax_ice_ml, axis=-1)
-        count_darea_liq_ml_median = np.nanmedian(count_darea_liq_ml, axis=-1)
-        count_darea_ice_ml_median = np.nanmedian(count_darea_ice_ml, axis=-1)
-        count_dmax_liq_ml_min = np.nanmin(count_dmax_liq_ml, axis=-1)
-        count_dmax_ice_ml_min = np.nanmin(count_dmax_ice_ml, axis=-1)
-        count_darea_liq_ml_min = np.nanmin(count_darea_liq_ml, axis=-1)
-        count_darea_ice_ml_min = np.nanmin(count_darea_ice_ml, axis=-1)
-        count_dmax_liq_ml_max = np.nanmax(count_dmax_liq_ml, axis=-1)
-        count_dmax_ice_ml_max = np.nanmax(count_dmax_ice_ml, axis=-1)
-        count_darea_liq_ml_max = np.nanmax(count_darea_liq_ml, axis=-1)
-        count_darea_ice_ml_max = np.nanmax(count_darea_ice_ml, axis=-1)
-        count_dmax_liq_ml_stddev = np.nanstd(count_dmax_liq_ml, axis=-1)
-        count_dmax_ice_ml_stddev = np.nanstd(count_dmax_ice_ml, axis=-1)
-        count_darea_liq_ml_stddev = np.nanstd(count_darea_liq_ml, axis=-1)
-        count_darea_ice_ml_stddev = np.nanstd(count_darea_ice_ml, axis=-1)            
-#         count_dmax_liq_ml_25pct = np.nanpercentile(count_dmax_liq_ml, q=25, axis=-1)
-#         count_dmax_ice_ml_25pct = np.nanpercentile(count_dmax_ice_ml, q=25, axis=-1)
-#         count_darea_liq_ml_25pct = np.nanpercentile(count_darea_liq_ml, q=25, axis=-1)
-#         count_darea_ice_ml_25pct = np.nanpercentile(count_darea_ice_ml, q=25, axis=-1)        
-#         count_dmax_liq_ml_75pct = np.nanpercentile(count_dmax_liq_ml, q=75, axis=-1)
-#         count_dmax_ice_ml_75pct = np.nanpercentile(count_dmax_ice_ml, q=75, axis=-1)
-#         count_darea_liq_ml_75pct = np.nanpercentile(count_darea_liq_ml, q=75, axis=-1)
-#         count_darea_ice_ml_75pct = np.nanpercentile(count_darea_ice_ml, q=75, axis=-1)      
+        count_dmax_liq_ml_mean = np.nanmean(count_dmax_liq_ml_bs, axis=-1)
+        count_dmax_ice_ml_mean = np.nanmean(count_dmax_ice_ml_bs, axis=-1)
+        count_darea_liq_ml_mean = np.nanmean(count_darea_liq_ml_bs, axis=-1)
+        count_darea_ice_ml_mean = np.nanmean(count_darea_ice_ml_bs, axis=-1)
+        count_dmax_liq_ml_median = np.nanmedian(count_dmax_liq_ml_bs, axis=-1)
+        count_dmax_ice_ml_median = np.nanmedian(count_dmax_ice_ml_bs, axis=-1)
+        count_darea_liq_ml_median = np.nanmedian(count_darea_liq_ml_bs, axis=-1)
+        count_darea_ice_ml_median = np.nanmedian(count_darea_ice_ml_bs, axis=-1)
+        count_dmax_liq_ml_min = np.nanmin(count_dmax_liq_ml_bs, axis=-1)
+        count_dmax_ice_ml_min = np.nanmin(count_dmax_ice_ml_bs, axis=-1)
+        count_darea_liq_ml_min = np.nanmin(count_darea_liq_ml_bs, axis=-1)
+        count_darea_ice_ml_min = np.nanmin(count_darea_ice_ml_bs, axis=-1)
+        count_dmax_liq_ml_max = np.nanmax(count_dmax_liq_ml_bs, axis=-1)
+        count_dmax_ice_ml_max = np.nanmax(count_dmax_ice_ml_bs, axis=-1)
+        count_darea_liq_ml_max = np.nanmax(count_darea_liq_ml_bs, axis=-1)
+        count_darea_ice_ml_max = np.nanmax(count_darea_ice_ml_bs, axis=-1)
+        count_dmax_liq_ml_stddev = np.nanstd(count_dmax_liq_ml_bs, axis=-1)
+        count_dmax_ice_ml_stddev = np.nanstd(count_dmax_ice_ml_bs, axis=-1)
+        count_darea_liq_ml_stddev = np.nanstd(count_darea_liq_ml_bs, axis=-1)
+        count_darea_ice_ml_stddev = np.nanstd(count_darea_ice_ml_bs, axis=-1)            
+        count_dmax_liq_ml_25pct = np.nanpercentile(count_dmax_liq_ml_bs, q=25, axis=-1)
+        count_dmax_ice_ml_25pct = np.nanpercentile(count_dmax_ice_ml_bs, q=25, axis=-1)
+        count_darea_liq_ml_25pct = np.nanpercentile(count_darea_liq_ml_bs, q=25, axis=-1)
+        count_darea_ice_ml_25pct = np.nanpercentile(count_darea_ice_ml_bs, q=25, axis=-1)        
+        count_dmax_liq_ml_75pct = np.nanpercentile(count_dmax_liq_ml_bs, q=75, axis=-1)
+        count_dmax_ice_ml_75pct = np.nanpercentile(count_dmax_ice_ml_bs, q=75, axis=-1)
+        count_darea_liq_ml_75pct = np.nanpercentile(count_darea_liq_ml_bs, q=75, axis=-1)
+        count_darea_ice_ml_75pct = np.nanpercentile(count_darea_ice_ml_bs, q=75, axis=-1)      
         
         
 
     
     # Compute LWC
-    print(f':count_dmax_liq_ml shape: {count_dmax_liq_ml.shape}')
-    if not bootstrap:
-        lwc_ml = np.nansum(count_dmax_liq_ml /sv * np.pi / 6. * binMid**3., axis=1) * 1.e6 # g m**-3
-    else:
-        print('HELLO!')
-        print(count_dmax_liq_ml.shape)
-        print((sv[:,:,None]).shape)
-        print(((binMid**3)[None,:,None]).shape)
-        lwc_ml_all = np.nansum(count_darea_liq_ml /sv[:,:,None] * np.pi / 6. * (binMid**3)[None,:,None], axis=1) * 1.e6 # g m**-3
+#     print(f':count_dmax_liq_ml shape: {count_dmax_liq_ml.shape}')
+#     if not bootstrap:
+    lwc_ml = np.nansum(count_darea_liq_ml /sv * np.pi / 6. * binMid**3., axis=1) * 1.e6 # g m**-3  # changed from dmax to darea
+    if bootstrap:
+        lwc_ml_all = np.nansum(count_darea_liq_ml_bs /sv[:,:,None] * np.pi / 6. * (binMid**3)[None,:,None], axis=1) * 1.e6 # g m**-3
         lwc_ml_median = np.nanmedian(lwc_ml_all, axis=-1)
         lwc_ml_mean = np.nanmean(lwc_ml_all, axis=-1)
         lwc_ml_min = np.nanmin(lwc_ml_all, axis=-1)
@@ -420,12 +419,12 @@ def make_psd(flight_time, tas, particle_time, diameter_minR, diameter_areaR, pha
         lwc_ml_stddev = np.nanstd(lwc_ml_all, axis=-1)
         lwc_ml_25pct = np.nanpercentile(lwc_ml_all, q=25, axis=-1)        
         lwc_ml_75pct = np.nanpercentile(lwc_ml_all, q=75, axis=-1)
-        lwc_ml = lwc_ml_mean
         
-        count_dmax_liq_ml = count_dmax_liq_ml_mean # just for some naming consistency
-        count_dmax_ice_ml = count_dmax_ice_ml_mean
-        count_darea_liq_ml = count_darea_liq_ml_mean
-        count_darea_ice_ml = count_darea_ice_ml_mean
+#         count_dmax_liq_ml = count_dmax_liq_ml_mean # just for some naming consistency
+#         count_dmax_ice_ml = count_dmax_ice_ml_mean
+#         count_darea_liq_ml = count_darea_liq_ml_mean
+#         count_darea_ice_ml = count_darea_ice_ml_mean
+    
     lwc_holroyd = np.nansum(count_dmax_liq_holroyd /sv * np.pi / 6. * binMid**3., axis=1) * 1.e6 # g m**-3
     lwc_ar = np.nansum(count_dmax_liq_ar /sv * np.pi / 6. * binMid**3., axis=1) * 1.e6 # g m**-3
 
@@ -445,6 +444,7 @@ def make_psd(flight_time, tas, particle_time, diameter_minR, diameter_areaR, pha
     psd['count_dmax_ice_holroyd'] = count_dmax_ice_holroyd
     psd['count_dmax_liq_ar'] = count_dmax_liq_ar
     psd['count_dmax_ice_ar'] = count_dmax_ice_ar
+    psd['count_dmax_all'] = count_dmax_all
     psd['count_darea_all'] = count_darea_all
     psd['count_darea_liq_ml'] = count_darea_liq_ml
     psd['count_darea_ice_ml'] = count_darea_ice_ml
@@ -457,8 +457,12 @@ def make_psd(flight_time, tas, particle_time, diameter_minR, diameter_areaR, pha
     psd['lwc_holroyd'] = lwc_holroyd # g m**-3
     psd['lwc_ar'] = lwc_ar # g m**-3
     
-    if bootstrap:  # jkcm: gotta add them to outputs!
-        #means are already added above
+    if bootstrap:  # jkcm: gotta add them to outputs
+        
+        psd['count_dmax_liq_ml_mean'] = count_dmax_liq_ml_mean
+        psd['count_dmax_ice_ml_mean'] = count_dmax_ice_ml_mean
+        psd['count_darea_liq_ml_mean'] = count_darea_liq_ml_mean
+        psd['count_darea_ice_ml_mean'] = count_darea_ice_ml_mean
         psd['count_dmax_liq_ml_median'] = count_dmax_liq_ml_median
         psd['count_dmax_ice_ml_median'] = count_dmax_ice_ml_median
         psd['count_darea_liq_ml_median'] = count_darea_liq_ml_median
@@ -477,6 +481,7 @@ def make_psd(flight_time, tas, particle_time, diameter_minR, diameter_areaR, pha
         psd['count_darea_ice_ml_stddev'] = count_darea_ice_ml_stddev
         
         psd['lwc_ml_all'] = lwc_ml_all
+        psd['lwc_ml_mean'] = lwc_ml_mean
         psd['lwc_ml_median'] = lwc_ml_median
         psd['lwc_ml_min'] = lwc_ml_min
         psd['lwc_ml_max'] = lwc_ml_max
@@ -484,14 +489,14 @@ def make_psd(flight_time, tas, particle_time, diameter_minR, diameter_areaR, pha
         psd['lwc_ml_25pct'] = lwc_ml_25pct
         psd['lwc_ml_75pct'] = lwc_ml_75pct
     
-#         psd['count_dmax_liq_ml_25pct'] = count_dmax_liq_ml_25pct
-#         psd['count_dmax_ice_ml_25pct'] = count_dmax_ice_ml_25pct
-#         psd['count_darea_liq_ml_25pct'] = count_darea_liq_ml_25pct
-#         psd['count_darea_ice_ml_25pct'] = count_darea_ice_ml_25pct
-#         psd['count_dmax_liq_ml_75pct'] = count_dmax_liq_ml_75pct
-#         psd['count_dmax_ice_ml_75pct'] = count_dmax_ice_ml_75pct
-#         psd['count_darea_liq_ml_75pct'] = count_darea_liq_ml_75pct
-#         psd['count_darea_ice_ml_75pct'] = count_darea_ice_ml_75pct    
+        psd['count_dmax_liq_ml_25pct'] = count_dmax_liq_ml_25pct
+        psd['count_dmax_ice_ml_25pct'] = count_dmax_ice_ml_25pct
+        psd['count_darea_liq_ml_25pct'] = count_darea_liq_ml_25pct
+        psd['count_darea_ice_ml_25pct'] = count_darea_ice_ml_25pct
+        psd['count_dmax_liq_ml_75pct'] = count_dmax_liq_ml_75pct
+        psd['count_dmax_ice_ml_75pct'] = count_dmax_ice_ml_75pct
+        psd['count_darea_liq_ml_75pct'] = count_darea_liq_ml_75pct
+        psd['count_darea_ice_ml_75pct'] = count_darea_ice_ml_75pct    
 
     # Save the PSDs to file if specified
     if outfile is not None:
@@ -514,6 +519,7 @@ def make_psd(flight_time, tas, particle_time, diameter_minR, diameter_areaR, pha
         ds['count_dmax_ice_ml'] = (['time', 'size_bin'], count_dmax_ice_ml)
         ds['count_dmax_ice_holroyd'] = (['time', 'size_bin'], count_dmax_ice_holroyd)
         ds['count_dmax_ice_ar'] = (['time', 'size_bin'], count_dmax_ice_ar)
+        ds['count_darea_all'] = (['time', 'size_bin'], count_darea_all)
         ds['count_darea_liq_ml'] = (['time', 'size_bin'], count_darea_liq_ml)
         ds['count_darea_liq_holroyd'] = (['time', 'size_bin'], count_darea_liq_holroyd)
         ds['count_darea_liq_ar'] = (['time', 'size_bin'], count_darea_liq_ar)
@@ -532,6 +538,10 @@ def make_psd(flight_time, tas, particle_time, diameter_minR, diameter_areaR, pha
         ds['deadtime_flag'].attrs['description'] = '0: < 80% deadtime for period; 1: Recommend skipping period due to high dead time'
         
         if bootstrap: #jkcm: and save it too!
+            ds['count_dmax_liq_ml_mean']  = (['time', 'size_bin'], count_dmax_liq_ml_mean)
+            ds['count_dmax_ice_ml_mean']  = (['time', 'size_bin'], count_dmax_ice_ml_mean)
+            ds['count_darea_liq_ml_mean'] = (['time', 'size_bin'], count_darea_liq_ml_mean)
+            ds['count_darea_ice_ml_mean'] = (['time', 'size_bin'], count_darea_ice_ml_mean)
             ds['count_dmax_liq_ml_median']  = (['time', 'size_bin'], count_dmax_liq_ml_median)
             ds['count_dmax_ice_ml_median']  = (['time', 'size_bin'], count_dmax_ice_ml_median)
             ds['count_darea_liq_ml_median'] = (['time', 'size_bin'], count_darea_liq_ml_median)
@@ -556,8 +566,21 @@ def make_psd(flight_time, tas, particle_time, diameter_minR, diameter_areaR, pha
             ds['count_dmax_ice_ml_75pct']   = (['time', 'size_bin'], count_dmax_ice_ml_75pct)
             ds['count_darea_liq_ml_75pct']  = (['time', 'size_bin'], count_darea_liq_ml_75pct)
             ds['count_darea_ice_ml_75pct']  = (['time', 'size_bin'], count_darea_ice_ml_75pct)
+            
+            
+            ds['lwc_ml_mean']  = ('time', lwc_ml_mean)
+            ds['lwc_ml_median']  = ('time', lwc_ml_median)
+            ds['lwc_ml_min']  = ('time', lwc_ml_min)
+            ds['lwc_ml_max']  = ('time', lwc_ml_max)
+            ds['lwc_ml_stddev']  = ('time', lwc_ml_stddev)
+            ds['lwc_ml_25pct']  = ('time', lwc_ml_25pct)
+            ds['lwc_ml_75pct']  = ('time', lwc_ml_75pct)
+            
         
-        ds.to_netcdf(outfile)
+#         ds.to_netcdf(outfile)
+        
+        comp = dict(zlib=True, complevel=2)
+        ds.to_netcdf(outfile, engine='h5netcdf', encoding={var: comp for var in ds.data_vars})
 
 
     return psd
