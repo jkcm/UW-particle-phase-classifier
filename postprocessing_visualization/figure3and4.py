@@ -124,7 +124,7 @@ for j in range(5):
     minute_pp[index]=time_convert[index].minute
     second_pp[index]=time_convert[index].second
 
-  hourminsec_pp=hour+minute/60+second/3600
+  hourminsec_pp=hour_pp+minute_pp/60+second_pp/3600
   in_situ_sub_pp=np.squeeze(np.where((hourminsec_pp>st)&\
                         (hourminsec_pp<et)))
 
