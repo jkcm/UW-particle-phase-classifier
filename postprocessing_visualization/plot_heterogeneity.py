@@ -24,24 +24,31 @@ norm_flips = flips/counts
     
     
 #plotting data    
-fig, ax = plt.subplots()
+
+fig,ax=plt.subplots(2,gridspec_kw={'height_ratios':[.8,.2]},\
+                    sharex=True,figsize=(6.4,6.4))
+#fig, ax = plt.subplots()
 xbins = 10**np.linspace(0, 5, 20)
 ybins = 10**np.linspace(0, 5, 50)
 
-_,_,_,sc = ax.hist2d(full_counts, flips, bins=(xbins, ybins),)
-ax.set_xlabel('all particle counts (#/sec)')
-ax.set_ylabel('phase flips (#/sec)')
-ax.plot([1,1e5],[0.5*1,0.5*1e5], 'w', label='0.5')
-ax.plot([1,1e5],[0.02*1,0.02*1e5], '--w', label='0.02')
-ax.plot([1,1e5],[0.002*1,0.002*1e5], ':w', label='0.002')
-ax.plot([1,1e5],[0.00005*1,0.00005*1e5], '-.w', label='0.00005')
+_,_,_,sc = ax[0].hist2d(full_counts, flips, bins=(xbins, ybins),)
+ax[0].set_ylabel('Phase Flips '+r"(s$^{-1}$)",fontsize=14)
+ax[0].plot([1,1e5],[0.5*1,0.5*1e5], 'w', label='0.5')
+ax[0].plot([1,1e5],[0.02*1,0.02*1e5], '--w', label='0.02')
+ax[0].plot([1,1e5],[0.002*1,0.002*1e5], ':w', label='0.002')
+ax[0].plot([1,1e5],[0.00005*1,0.00005*1e5], '-.w', label='0.00005')
 
-plt.colorbar(sc, ax=ax, label='# of 1Hz samples')
-ax.set_xscale('log')
-ax.set_yscale('log')
-plt.legend(title = 'flips per particle')
-ax.set_xlim((1, 6e4))
-ax.set_ylim((1, 2e3))
+print(np.histogram(full_counts,bins=xbins))
 
+cb=plt.colorbar(sc, ax=ax, label='Number of 1 Hz samples')
+cb.ax.tick_params(labelsize=14)
+ax[0].set_xscale('log')
+ax[0].set_yscale('log')
+ax[0].legend(title = 'Flips per Particle')
+ax[0].set_xlim((1, 5.4e4))
+ax[0].set_ylim((1, 2e3))
+ax[1].hist(full_counts,bins=xbins,histtype='step',color='b')
+ax[1].set_xlabel('2DS Imaged Particles '+r"(s$^{-1}$)",fontsize=14)
+ax[1].set_ylabel('Freq',fontsize=14)
 fig.savefig('/home/disk/eos12/ratlas/SOCRATES/ML/plots/heterogeneity_histogram.png',dpi=600)
 #fig.savefig('/home/disk/p/jkcm/plots/particle/flips per particle plot.png', bbox_inches='tight', dpi=300)

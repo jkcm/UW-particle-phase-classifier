@@ -1,3 +1,5 @@
+#Primary Author: Ian Hsiao
+
 import pickle
 import xarray as xr
 import numpy as np
@@ -56,23 +58,60 @@ subset_t_labels = y_test
 
 prob = model.predict_proba(subset)[:,1]
 acc, conf = calibration_curve(subset_t_labels, prob, n_bins=20)
-print(acc)
+prob[np.where(prob<.5)]=1-prob[np.where(prob<.5)]
+
+fig,ax=plt.subplots(2,gridspec_kw={'height_ratios':[.8,.2]},\
+                    sharex=True,figsize=(6.4,6.4))
+
 # make 1-1 line
 x = np.linspace(0,1,100)
-plt.plot(x,x,"--",lw=2,label = "1:1 line",color='b')
+ax[0].plot(x,x,"--",lw=2,label = "1:1 line",color='b')
 # plot confidence curve
-plt.plot(conf, acc,lw=2,label = "Calibration Curve",color='k')
+ax[0].plot(conf, acc,lw=2,label = "Calibration Curve",color='k')
 # plot settings
-plt.title("Calibration Curve",fontsize=16)
-plt.ylabel("Model Accuracy",fontsize=16)
-plt.xlabel("Model Confidence",fontsize=16)
-plt.xlim(0.5,1)
-plt.ylim(0.5,1)
-plt.legend(loc="best",frameon=False,fontsize=16)
-plt.yticks(fontsize=16)
-plt.xticks(fontsize=16)
+ax[0].set_title("Calibration Curve",fontsize=14)
+ax[0].set_ylabel("Model Accuracy",fontsize=14)
+ax[0].set_xlim(0.5,1)
+ax[0].set_ylim(0.5,1)
+ax[0].legend(loc="best",frameon=False,fontsize=14)
+#ax[0].set_yticks(fontsize=16)
+#ax[0].set_xticks(fontsize=16)
+print(conf)
+ax[1].plot([.5,1.0],[1e3,1e3],'k--',alpha=.3)
+ax[1].plot([.5,1.0],[1e4,1e4],'k--',alpha=.3)
+ax[1].hist(prob,bins=20,histtype='step',color='b')
+ax[1].set_ylim(100,20000)
+ax[1].set_yscale('log')
+ax[1].set_xlabel("Model Confidence",fontsize=14)
+ax[1].set_ylabel('Freq',fontsize=14)
 plt.tight_layout()
-plt.savefig("figure5", dpi=400)
+plt.savefig("/home/disk/eos12/ratlas/SOCRATES/ML/plots/figure5_log.png", dpi=400)
+
+fig,ax=plt.subplots(2,gridspec_kw={'height_ratios':[.8,.2]},\
+                    sharex=True,figsize=(6.4,6.4))
+
+print(np.histogram(prob,bins=20)[0])
+print(np.sum(np.histogram(prob,bins=20)[0]))
+
+# make 1-1 line
+x = np.linspace(0,1,100)
+ax[0].plot(x,x,"--",lw=2,label = "1:1 line",color='b')
+# plot confidence curve
+ax[0].plot(conf, acc,lw=2,label = "Calibration Curve",color='k')
+# plot settings
+ax[0].set_title("Calibration Curve",fontsize=14)
+ax[0].set_ylabel("Model Accuracy",fontsize=14)
+ax[0].set_xlim(0.5,1)
+ax[0].set_ylim(0.5,1)
+ax[0].legend(loc="best",frameon=False,fontsize=14)
+#ax[0].set_yticks(fontsize=16)
+#ax[0].set_xticks(fontsize=16)
+print(conf)
+ax[1].hist(prob,bins=20,histtype='step',color='b')
+ax[1].set_xlabel("Model Confidence",fontsize=14)
+ax[1].set_ylabel('Freq',fontsize=14)
+plt.tight_layout()
+plt.savefig("/home/disk/eos12/ratlas/SOCRATES/ML/plots/figure5_lin.png", dpi=400)
 
 #prob = model.predict(subset)
 #
