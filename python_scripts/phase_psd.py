@@ -108,7 +108,7 @@ def load_pbp(pbpfilename, phasefilename, Dmin=0.05, Dmax=3.2, iatThresh=1.e-6):
     Inputs:
         pbpfilename: full path to the PbP data file [str]
         phasefilename: full path to the phase ID data file [str]
-        Dmin: smallest maximum dimenison to consider in the PDSs (speeds up processing) [mm]
+        Dmin: smallest maximum dimenison to consider in the PDSs (speeds up processing) [mm] 
         Dmax: largest maximum dimenison to consider in the PDSs (speeds up processing) [mm]
         iatThresh: smallest interarrival time to consider in the PDSs (speeds up processing) [s]
     Outputs:
@@ -499,88 +499,86 @@ def make_psd(flight_time, tas, particle_time, diameter_minR, diameter_areaR, pha
         psd['count_darea_ice_ml_75pct'] = count_darea_ice_ml_75pct    
 
     # Save the PSDs to file if specified
-    if outfile is not None:
-        ds = xr.Dataset()
+#     if outfile is not None:
+    ds = xr.Dataset()
 
-        ds.coords['time'] = ('time', flight_time)
-        ds.coords['bin_edges'] = ('bin_edges', binEdges)
-        ds.coords['bin_edges'].attrs['units'] = 'mm'
-        ds.coords['bin_width'] = ('size_bin', binWidth)
-        ds.coords['bin_width'].attrs['units'] = 'cm'
+    ds.coords['time'] = ('time', flight_time)
+    ds.coords['bin_edges'] = ('bin_edges', binEdges)
+    ds.coords['bin_edges'].attrs['units'] = 'mm'
+    ds.coords['bin_width'] = ('size_bin', binWidth)
+    ds.coords['bin_width'].attrs['units'] = 'cm'
 
-        #if bootstrap: # joefinlon: do we need this block?
-            #count_dmax_liq_ml
-        
-        
-        ds['count_dmax_all'] = (['time', 'size_bin'], count_dmax_all)
-        ds['count_dmax_liq_ml'] = (['time', 'size_bin'], count_dmax_liq_ml)
-        ds['count_dmax_liq_holroyd'] = (['time', 'size_bin'], count_dmax_liq_holroyd)
-        ds['count_dmax_liq_ar'] = (['time', 'size_bin'], count_dmax_liq_ar)
-        ds['count_dmax_ice_ml'] = (['time', 'size_bin'], count_dmax_ice_ml)
-        ds['count_dmax_ice_holroyd'] = (['time', 'size_bin'], count_dmax_ice_holroyd)
-        ds['count_dmax_ice_ar'] = (['time', 'size_bin'], count_dmax_ice_ar)
-        ds['count_darea_all'] = (['time', 'size_bin'], count_darea_all)
-        ds['count_darea_liq_ml'] = (['time', 'size_bin'], count_darea_liq_ml)
-        ds['count_darea_liq_holroyd'] = (['time', 'size_bin'], count_darea_liq_holroyd)
-        ds['count_darea_liq_ar'] = (['time', 'size_bin'], count_darea_liq_ar)
-        ds['count_darea_ice_ml'] = (['time', 'size_bin'], count_darea_ice_ml)
-        ds['count_darea_ice_holroyd'] = (['time', 'size_bin'], count_darea_ice_holroyd)
-        ds['count_darea_ice_ar'] = (['time', 'size_bin'], count_darea_ice_ar)
-        ds['sample_volume'] = (['time', 'size_bin'], sv)
-        ds['sample_volume'].attrs['units'] = 'cm**3'
-        ds['lwc_ml'] = ('time', lwc_ml)
-        ds['lwc_ml'].attrs['units'] = 'g m**-3'
-        ds['lwc_holroyd'] = ('time', lwc_holroyd)
-        ds['lwc_holroyd'].attrs['units'] = 'g m**-3'
-        ds['lwc_ar'] = ('time', lwc_ar)
-        ds['lwc_ar'].attrs['units'] = 'g m**-3'
-        ds['deadtime_flag'] = ('time', deadtime_flag)
-        ds['deadtime_flag'].attrs['description'] = '0: < 80% deadtime for period; 1: Recommend skipping period due to high dead time'
-        
-        if bootstrap: #jkcm: and save it too!
-            ds['count_dmax_liq_ml_mean']  = (['time', 'size_bin'], count_dmax_liq_ml_mean)
-            ds['count_dmax_ice_ml_mean']  = (['time', 'size_bin'], count_dmax_ice_ml_mean)
-            ds['count_darea_liq_ml_mean'] = (['time', 'size_bin'], count_darea_liq_ml_mean)
-            ds['count_darea_ice_ml_mean'] = (['time', 'size_bin'], count_darea_ice_ml_mean)
-            ds['count_dmax_liq_ml_median']  = (['time', 'size_bin'], count_dmax_liq_ml_median)
-            ds['count_dmax_ice_ml_median']  = (['time', 'size_bin'], count_dmax_ice_ml_median)
-            ds['count_darea_liq_ml_median'] = (['time', 'size_bin'], count_darea_liq_ml_median)
-            ds['count_darea_ice_ml_median'] = (['time', 'size_bin'], count_darea_ice_ml_median)
-            ds['count_dmax_liq_ml_min']     = (['time', 'size_bin'], count_dmax_liq_ml_min)
-            ds['count_dmax_ice_ml_min']     = (['time', 'size_bin'], count_dmax_ice_ml_min)
-            ds['count_darea_liq_ml_min']    = (['time', 'size_bin'], count_darea_liq_ml_min)
-            ds['count_darea_ice_ml_min']    = (['time', 'size_bin'], count_darea_ice_ml_min)
-            ds['count_dmax_liq_ml_max']     = (['time', 'size_bin'], count_dmax_liq_ml_max)
-            ds['count_dmax_ice_ml_max']     = (['time', 'size_bin'], count_dmax_ice_ml_max)
-            ds['count_darea_liq_ml_max']    = (['time', 'size_bin'], count_darea_liq_ml_max)
-            ds['count_darea_ice_ml_max']    = (['time', 'size_bin'], count_darea_ice_ml_max)
-            ds['count_dmax_liq_ml_stddev']  = (['time', 'size_bin'], count_dmax_liq_ml_stddev)
-            ds['count_dmax_ice_ml_stddev']  = (['time', 'size_bin'], count_dmax_ice_ml_stddev)
-            ds['count_darea_liq_ml_stddev'] = (['time', 'size_bin'], count_darea_liq_ml_stddev)
-            ds['count_darea_ice_ml_stddev'] = (['time', 'size_bin'], count_darea_ice_ml_stddev)
-            ds['count_dmax_liq_ml_25pct']   = (['time', 'size_bin'], count_dmax_liq_ml_25pct)
-            ds['count_dmax_ice_ml_25pct']   = (['time', 'size_bin'], count_dmax_ice_ml_25pct)
-            ds['count_darea_liq_ml_25pct']  = (['time', 'size_bin'], count_darea_liq_ml_25pct)
-            ds['count_darea_ice_ml_25pct']  = (['time', 'size_bin'], count_darea_ice_ml_25pct)
-            ds['count_dmax_liq_ml_75pct']   = (['time', 'size_bin'], count_dmax_liq_ml_75pct)
-            ds['count_dmax_ice_ml_75pct']   = (['time', 'size_bin'], count_dmax_ice_ml_75pct)
-            ds['count_darea_liq_ml_75pct']  = (['time', 'size_bin'], count_darea_liq_ml_75pct)
-            ds['count_darea_ice_ml_75pct']  = (['time', 'size_bin'], count_darea_ice_ml_75pct)
-            
-            
-            ds['lwc_ml_mean']  = ('time', lwc_ml_mean)
-            ds['lwc_ml_median']  = ('time', lwc_ml_median)
-            ds['lwc_ml_min']  = ('time', lwc_ml_min)
-            ds['lwc_ml_max']  = ('time', lwc_ml_max)
-            ds['lwc_ml_stddev']  = ('time', lwc_ml_stddev)
-            ds['lwc_ml_25pct']  = ('time', lwc_ml_25pct)
-            ds['lwc_ml_75pct']  = ('time', lwc_ml_75pct)
-            
-        
-#         ds.to_netcdf(outfile)
-        
-        comp = dict(zlib=True, complevel=2)
-        ds.to_netcdf(outfile, engine='h5netcdf', encoding={var: comp for var in ds.data_vars})
+    #if bootstrap: # joefinlon: do we need this block?
+        #count_dmax_liq_ml
 
 
-    return psd
+    ds['count_dmax_all'] = (['time', 'size_bin'], count_dmax_all)
+    ds['count_dmax_liq_ml'] = (['time', 'size_bin'], count_dmax_liq_ml)
+    ds['count_dmax_liq_holroyd'] = (['time', 'size_bin'], count_dmax_liq_holroyd)
+    ds['count_dmax_liq_ar'] = (['time', 'size_bin'], count_dmax_liq_ar)
+    ds['count_dmax_ice_ml'] = (['time', 'size_bin'], count_dmax_ice_ml)
+    ds['count_dmax_ice_holroyd'] = (['time', 'size_bin'], count_dmax_ice_holroyd)
+    ds['count_dmax_ice_ar'] = (['time', 'size_bin'], count_dmax_ice_ar)
+    ds['count_darea_all'] = (['time', 'size_bin'], count_darea_all)
+    ds['count_darea_liq_ml'] = (['time', 'size_bin'], count_darea_liq_ml)
+    ds['count_darea_liq_holroyd'] = (['time', 'size_bin'], count_darea_liq_holroyd)
+    ds['count_darea_liq_ar'] = (['time', 'size_bin'], count_darea_liq_ar)
+    ds['count_darea_ice_ml'] = (['time', 'size_bin'], count_darea_ice_ml)
+    ds['count_darea_ice_holroyd'] = (['time', 'size_bin'], count_darea_ice_holroyd)
+    ds['count_darea_ice_ar'] = (['time', 'size_bin'], count_darea_ice_ar)
+    ds['sample_volume'] = (['time', 'size_bin'], sv)
+    ds['sample_volume'].attrs['units'] = 'cm**3'
+    ds['lwc_ml'] = ('time', lwc_ml)
+    ds['lwc_ml'].attrs['units'] = 'g m**-3'
+    ds['lwc_holroyd'] = ('time', lwc_holroyd)
+    ds['lwc_holroyd'].attrs['units'] = 'g m**-3'
+    ds['lwc_ar'] = ('time', lwc_ar)
+    ds['lwc_ar'].attrs['units'] = 'g m**-3'
+    ds['deadtime_flag'] = ('time', deadtime_flag)
+    ds['deadtime_flag'].attrs['description'] = '0: < 80% deadtime for period; 1: Recommend skipping period due to high dead time'
+
+    if bootstrap: #jkcm: and save it too!
+        ds['count_dmax_liq_ml_mean']  = (['time', 'size_bin'], count_dmax_liq_ml_mean)
+        ds['count_dmax_ice_ml_mean']  = (['time', 'size_bin'], count_dmax_ice_ml_mean)
+        ds['count_darea_liq_ml_mean'] = (['time', 'size_bin'], count_darea_liq_ml_mean)
+        ds['count_darea_ice_ml_mean'] = (['time', 'size_bin'], count_darea_ice_ml_mean)
+        ds['count_dmax_liq_ml_median']  = (['time', 'size_bin'], count_dmax_liq_ml_median)
+        ds['count_dmax_ice_ml_median']  = (['time', 'size_bin'], count_dmax_ice_ml_median)
+        ds['count_darea_liq_ml_median'] = (['time', 'size_bin'], count_darea_liq_ml_median)
+        ds['count_darea_ice_ml_median'] = (['time', 'size_bin'], count_darea_ice_ml_median)
+        ds['count_dmax_liq_ml_min']     = (['time', 'size_bin'], count_dmax_liq_ml_min)
+        ds['count_dmax_ice_ml_min']     = (['time', 'size_bin'], count_dmax_ice_ml_min)
+        ds['count_darea_liq_ml_min']    = (['time', 'size_bin'], count_darea_liq_ml_min)
+        ds['count_darea_ice_ml_min']    = (['time', 'size_bin'], count_darea_ice_ml_min)
+        ds['count_dmax_liq_ml_max']     = (['time', 'size_bin'], count_dmax_liq_ml_max)
+        ds['count_dmax_ice_ml_max']     = (['time', 'size_bin'], count_dmax_ice_ml_max)
+        ds['count_darea_liq_ml_max']    = (['time', 'size_bin'], count_darea_liq_ml_max)
+        ds['count_darea_ice_ml_max']    = (['time', 'size_bin'], count_darea_ice_ml_max)
+        ds['count_dmax_liq_ml_stddev']  = (['time', 'size_bin'], count_dmax_liq_ml_stddev)
+        ds['count_dmax_ice_ml_stddev']  = (['time', 'size_bin'], count_dmax_ice_ml_stddev)
+        ds['count_darea_liq_ml_stddev'] = (['time', 'size_bin'], count_darea_liq_ml_stddev)
+        ds['count_darea_ice_ml_stddev'] = (['time', 'size_bin'], count_darea_ice_ml_stddev)
+        ds['count_dmax_liq_ml_25pct']   = (['time', 'size_bin'], count_dmax_liq_ml_25pct)
+        ds['count_dmax_ice_ml_25pct']   = (['time', 'size_bin'], count_dmax_ice_ml_25pct)
+        ds['count_darea_liq_ml_25pct']  = (['time', 'size_bin'], count_darea_liq_ml_25pct)
+        ds['count_darea_ice_ml_25pct']  = (['time', 'size_bin'], count_darea_ice_ml_25pct)
+        ds['count_dmax_liq_ml_75pct']   = (['time', 'size_bin'], count_dmax_liq_ml_75pct)
+        ds['count_dmax_ice_ml_75pct']   = (['time', 'size_bin'], count_dmax_ice_ml_75pct)
+        ds['count_darea_liq_ml_75pct']  = (['time', 'size_bin'], count_darea_liq_ml_75pct)
+        ds['count_darea_ice_ml_75pct']  = (['time', 'size_bin'], count_darea_ice_ml_75pct)
+
+
+        ds['lwc_ml_mean']  = ('time', lwc_ml_mean)
+        ds['lwc_ml_median']  = ('time', lwc_ml_median)
+        ds['lwc_ml_min']  = ('time', lwc_ml_min)
+        ds['lwc_ml_max']  = ('time', lwc_ml_max)
+        ds['lwc_ml_stddev']  = ('time', lwc_ml_stddev)
+        ds['lwc_ml_25pct']  = ('time', lwc_ml_25pct)
+        ds['lwc_ml_75pct']  = ('time', lwc_ml_75pct)
+
+        if outfile:
+    #         ds.to_netcdf(outfile)
+
+            comp = dict(zlib=True, complevel=2)
+            ds.to_netcdf(outfile, engine='h5netcdf', encoding={var: comp for var in ds.data_vars})
+    return (psd, ds)

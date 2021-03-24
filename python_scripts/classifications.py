@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 import pickle
 import os
-from joblib import dump, load
 import datetime
 import glob
 
@@ -73,11 +72,20 @@ def make_dataset_from_processed_UIOPS_data(input_file, output_file, model_file):
     area_ratio_index = data.area_ratio <= 0.2
     iat_index = iat<=0
     nan_in_df_index = (data_df.apply(np.isnan).any(axis=1)).values
+    bad_fine_detail_ratio_index = data.fine_detail_ratio<0
     
     # flag: 0th bit is iat_index, 1st bit=area_ratio_index, 2nd bit=image_center_in_index, 3rd bit=auto_reject_index 4th bit=size_index, 5th bit=nan in dataframe
     # if flag==0, data is good. recover individual flags with flag>>X)&1 where X is the reverse shift
     # what I'm doing is bit-shifting and adding, since we've got bunch of binary flags, then setting the datatype to be an 8-bit int (smallest container)
-    flag = ((iat_index<<0)+(area_ratio_index.values<<1)+(image_center_in_index.values<<2)+(auto_reject_index<<3)+(size_index.values<<4)+(nan_in_df_index<<5)).astype("uint8")
+    flag = (
+            (iat_index<<0)+
+            (area_ratio_index.values<<1)+
+            (image_center_in_index.values<<2)+
+            (auto_reject_index<<3)+
+            (size_index.values<<4)+
+            (nan_in_df_index<<5)+
+            (bad_fine_detail_ratio_index.values<<6)
+           ).astype("uint8")
 
     # generating UIOPS and EOL classifications for comparisons
     hollow=data.variables['image_hollow'][:]
@@ -116,7 +124,8 @@ def make_dataset_from_processed_UIOPS_data(input_file, output_file, model_file):
     save_data = xr.Dataset(data_vars={'datetime': data['datetime']}, attrs=save_data_attrs) 
     save_data['UW_flag'] = (('time'), flag, {'Units': '--', 'Description': 'UW data quality flag: 0 is good values, '+
                                                        '0th bit is interarrival time=negative, 1st bit is area ratio index< 0.2, 2nd bit is image center not in particle, '+
-                                                       '3rd bit is UIOPS auto_reject index is not in (48, 72, 104), 4th bit is size is above 25 pixels, 5th bit is NaN in input data'})
+                                                       '3rd bit is UIOPS auto_reject index is not in (48, 72, 104), 4th bit is size is above 25 pixels, 5th bit is NaN in '+
+                                                       'input data, 6th bit is negative fine detail ratios'})
     save_data['UW_phase'] = (('time'), predictions, {'Units': '0:ice_1:liquid', 'Description': 'UW random forest phase classification, 1=liquid, 0=ice'})
     save_data['UW_certainty'] = (('time'), probability, {'Units': '0-1', 'Description': 'UW phase prediction certainty'})
     save_data['AR_threshold_phase'] = (('time'), EOL, {'Units': '0:ice_1:liquid', 'Description': 'area ratio threshold classification, AR>0.5=liquid'})
@@ -142,6 +151,6 @@ if __name__ == "__main__":
     for i in flights_to_classify:
         print(i)
         input_file = f"/home/disk/eos9/jfinlon/socrates/{i}/pbp.{i}.2DS.H.nc"
-        output_file = f"/home/disk/eos9/jkcm/Data/particle/classified/UW_particle_classifications.{i}.nc"
+        output_file = f"/home/disk/eos9/jkcm/Data/particle/classified/new/UW_particle_classifications.{i}.nc"
         make_dataset_from_processed_UIOPS_data(input_file, output_file, model_file)
         
