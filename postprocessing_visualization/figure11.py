@@ -41,7 +41,7 @@ ybins = 10**np.linspace(0, 3, 50)
 _,_,_,sc = ax.hist2d(full_counts, flips, bins=(xbins, ybins),)
 ax.set_xlabel('2DS Imaged Particle Count '+r"(s$^{-1}$)",fontsize=14)
 ax.set_ylabel('Phase Flips '+r"(s$^{-1}$)",fontsize=14)
-for val, ls in zip((0.5, 0.2, 0.002, 0.00005), ('w', '--w', ':w', '-.w')):
+for val, ls in zip((0.5, 0.02, 0.002, 0.00005), ('w', '--w', ':w', '-.w')):
     ax.plot([1,1e5],[val,1e5*val], ls, label=str(val))
 
 
