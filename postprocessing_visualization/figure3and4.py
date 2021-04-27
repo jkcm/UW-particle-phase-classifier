@@ -4,7 +4,6 @@ import glob
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import subset_flight_table as sft
 from scipy import interpolate, stats
 from scipy.special import erfc
 import pandas
@@ -13,7 +12,6 @@ from scipy.optimize import curve_fit
 import scipy.integrate as integrate
 from scipy.signal import find_peaks
 from subprocess import call
-import sat_vap_pres
 
 #colors=['midnightblue','midnightblue','midnightblue',\
 #        'darkred','indigo','midnightblue','darkred']
@@ -99,10 +97,6 @@ for j in range(5):
   rice=low_rate.variables['RICE'][:]
   plwcc=low_rate.variables['PLWCC'][:]
   time=low_rate.variables['Time']
-  rh=low_rate.variables['RHUM']
-  mr=low_rate.variables['MR']
-  rhi=low_rate.variables['RHUM']*sat_vap_pres.liquid(T+273.15)/\
-      sat_vap_pres.ice(T+273.15)
   ice=low_rate.variables['UW_ICE_PARTICLES'][:]
   liquid=low_rate.variables['UW_LIQUID_PARTICLES'][:]
   total=ice+liquid
@@ -170,20 +164,32 @@ for j in range(5):
   if j==2:
     ice_deq=np.concatenate((ice_deq,diam_areaR[in_situ_sub_pp]))
 
-  low_rate_filename=glob.glob(low_rate_path+'RF'+flight[2:4]+'*.nc')[0]
+  wv_search=diao_path+'socrates_RF'+flight[2:4]+'_H2O_25hz_v18_Diao.txt'
+  diao=np.genfromtxt(wv_search,delimiter='\t')
+  rh_diao=diao[1:,2]
+  rhi_diao=diao[1:,3]
+  time_diao=diao[1:,0]
 
-  wv_search=glob.glob(diao_path+'scrf'+flight[2:4]+'*.txt')
+  rh_diao[np.where(rh_diao>150)]=np.nan
+  rhi_diao[np.where(rhi_diao>150)]=np.nan
 
-  diao=np.genfromtxt(wv_search[0],delimiter='\t')
+  rh_diao=np.nanmean(rh_diao.reshape(-1, 25), axis=1)
+  rhi_diao=np.nanmean(rhi_diao.reshape(-1, 25), axis=1)
+  time_diao=np.nanmean(time_diao.reshape(-1, 25), axis=1)
 
-  wvp_diao=diao[1:,2]
+  time_convert=num2date(time_diao,time.units)
+  hour=np.zeros(len(time_convert))
+  minute=np.zeros(len(time_convert))
+  second=np.zeros(len(time_convert))
 
-  esl=sat_vap_pres.liquid(T+273.15)
-  esi=sat_vap_pres.ice(T+273.15)
+  for index in range(len(time_convert)):
+    hour[index]=time_convert[index].hour
+    minute[index]=time_convert[index].minute
+    second[index]=time_convert[index].second
 
-  mr_diao=Mh2o/Mair*wvp_diao
-  rh_diao=mr_diao/mr*rh/1000.0
-  rhi_diao=mr_diao/mr*rh*(esl/esi)/1000.0
+  diao_hourminsec=hour+minute/60+second/3600
+  diao_in_situ_sub=np.squeeze(np.where((diao_hourminsec>st)&\
+                        (diao_hourminsec<et)))
 
   try:
     [droplet_flag,droplet,diameter_C1,dmax_C1,diameter_C2,dmax_C2]=\
@@ -365,10 +371,10 @@ for j in range(5):
              str(int(np.floor(np.min(T[in_situ_sub]))))+r"$\degree$C < T <"+\
              str(int(np.ceil(np.max(T[in_situ_sub]))))+r"$\degree$C",\
              fontsize=8)
-  axes1[1,j].plot(hourminsec[in_situ_sub],rh_diao[in_situ_sub],color=colors[j])
-  axes1[1,j].plot(hourminsec[in_situ_sub],rhi_diao[in_situ_sub],color=colors[j],\
+  axes1[1,j].plot(diao_hourminsec[diao_in_situ_sub],rh_diao[diao_in_situ_sub],color=colors[j])
+  axes1[1,j].plot(diao_hourminsec[diao_in_situ_sub],rhi_diao[diao_in_situ_sub],color=colors[j],\
                   linestyle='dotted')
-  axes1[1,j].plot(hourminsec[in_situ_sub],rhi_diao[in_situ_sub]*0.0+100.0,\
+  axes1[1,j].plot(diao_hourminsec[diao_in_situ_sub],rhi_diao[diao_in_situ_sub]*0.0+100.0,\
                   'k--',alpha=.5)
   axes1[1,j].set_ylim(75,140)
 
@@ -422,8 +428,8 @@ axes1[0,4].set_title('RF03 (Mixed)')
 #axes1[0,0].set_ylabel('Temp. (C)')
 #axes2.set_ylabel('Height (km)')
 
-axes1[0,0].set_ylabel('RICE (v)')
-axes1[1,0].set_ylabel('RH (-)')
+axes1[0,0].set_ylabel('RICE (V)')
+axes1[1,0].set_ylabel('RH (%)')
 axes1[2,0].set_ylabel('# of Particles (-)')
 axes1[3,0].set_ylabel('Liquid/Total (-)')
 #axes1[4,0].set_ylabel('flips/particle')
@@ -473,27 +479,22 @@ axes2.set_xlabel('area-equivalent diameter (mm)')
 axes2.set_ylabel('Normalized Frequency')
 axes2.legend(['Ice-Dominated','Liquid-Only'],frameon=False)
 fig2.tight_layout()
-fig2.savefig('/home/disk/eos7/ratlas/SOCRATES/plots/'+\
-             'socrates_ml_train-test-val_set_proposed_psd.png',\
-             dpi=600)
+fig2.savefig('figure3.png',dpi=600)
 
-
-#fig2,axes2 = plt.subplots(2,figsize=(3.5,2.5))
-#hist=np.histogram(ice_deq,bins=area_bins)[0]/len(ice_deq)
-#axes[0].
-#axes2.step(area_bins,np.concatenate(([0],hist)),color='midnightblue',\
-#           where='pre')
-#hist=np.histogram(liq_deq,bins=area_bins)[0]/len(liq_deq)
-#axes2.step(area_bins,np.concatenate(([0],hist)),color='darkred',\
-#           where='pre')
-#axes2.set_xscale('log')
-#axes2.set_ylim(0.002,0.6)
-#axes2.set_xlim(0.0,1.0)
-#axes2.set_xlabel('area-equivalent diameter (mm)')
-#axes2.set_ylabel('Normalized Frequency')
-#axes2.legend(['Ice-Dominated','Liquid-Only'])
-#fig2.tight_layout()
-#fig2.savefig('/home/disk/eos7/ratlas/SOCRATES/plots/'+\
-#             'socrates_ml_train-test-val_set_proposed_psd.png',\
-#             dpi=600)
+fig2,axes2 = plt.subplots(2,figsize=(3.5,2.5))
+hist=np.histogram(ice_deq,bins=area_bins)[0]/len(ice_deq)
+axes[0].
+axes2.step(area_bins,np.concatenate(([0],hist)),color='midnightblue',\
+           where='pre')
+hist=np.histogram(liq_deq,bins=area_bins)[0]/len(liq_deq)
+axes2.step(area_bins,np.concatenate(([0],hist)),color='darkred',\
+           where='pre')
+axes2.set_xscale('log')
+axes2.set_ylim(0.002,0.6)
+axes2.set_xlim(0.0,1.0)
+axes2.set_xlabel('area-equivalent diameter (mm)')
+axes2.set_ylabel('Normalized Frequency')
+axes2.legend(['Ice-Dominated','Liquid-Only'])
+fig2.tight_layout()
+fig2.savefig('figure4.png',dpi=600)
 
