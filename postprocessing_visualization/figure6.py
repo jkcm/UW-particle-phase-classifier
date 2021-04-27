@@ -1,4 +1,4 @@
-#Author: Jeremy Lu
+#Primary Author: Jeremy Lu
 #Plots feature importances of model
 
 import numpy as np
