@@ -1,15 +1,21 @@
-import numpy as np
-from netCDF4 import Dataset, num2date
+"""plot map and temperature distribution
+    Created by Rachel Atlas"""
+
+#standard
 import glob
+
+#nonstandard
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from datetime import date, datetime, timedelta
-from subprocess import call
 from mpl_toolkits.basemap import Basemap
+from netCDF4 import Dataset, num2date
+import numpy as np
+
+
+
 
 fig,axes=plt.subplots(1,2,figsize=(12,5))
-
 m = Basemap(projection='nsper',lat_0=-52,\
     lon_0=147.5,satellite_height=6e5,ax=axes[0])
 m.bluemarble()

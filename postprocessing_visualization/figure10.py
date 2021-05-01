@@ -1,18 +1,14 @@
-#!/usr/bin/env conda run -n classified-cset python
 # -*- coding: utf-8 -*-
 """plot particle PSD
     Created by Johannes Mohrmann"""
 
-
-import xarray as xr
-import numpy as np
-# import pandas as pd
-# import pickle
-# import os
-# from joblib import dump, load
-# import datetime
-import matplotlib.pyplot as plt
+#standard
 import glob
+
+#nonstandard
+import matplotlib.pyplot as plt
+import numpy as np
+import xarray as xr
 
 psd_files = sorted([i for i in glob.glob('/home/disk/eos9/jkcm/Data/particle/psd/rf*_psd.nc') if not 'rf15' in i])
 flight_files = sorted([i for i in glob.glob('/home/disk/eos9/jfinlon/socrates/*/*.PNI.nc') if not 'RF15' in i])
@@ -72,7 +68,7 @@ for i in range(len(temp_ranges)-1):
         ax.set_ylabel('dN/dlog(D) (cm$^{-3}$)')
     if i in [3, 4, 5]:
 #     if True:
-        ax.set_xlabel('area-equivalent diameter (mm)')
+        ax.set_xlabel('Area-equivalent diameter (mm)')
     ax.plot(bins, ice_ml_hist/log_width, label='ice', c='tab:orange')
     ax.plot(bins, ice_ml_hist_ml/log_width, label='ice (bootstrap)', c='tab:orange', ls='--')
     ax.fill_between(bins, ice_ml_hist_25/log_width, ice_ml_hist_75/log_width, color='tab:orange', alpha=0.2)

@@ -1,14 +1,13 @@
-#!/usr/bin/env conda run -n classified-cset python
-# -*- coding: utf-8 -*-
 """plot particle heterogeneity 2d histogram
     Created by Johannes Mohrmann, March 6 2021"""
 
-import xarray as xr
-import numpy as np
+#nonstandard
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
+import numpy as np
+import xarray as xr
 
 
 #loading data

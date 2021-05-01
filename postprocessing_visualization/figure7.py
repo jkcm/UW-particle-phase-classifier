@@ -1,12 +1,17 @@
-import numpy as np
-import xarray as xr
-import pandas as pd
+"""plot F1 scores
+    Created by Jeremy Lu, edited by Rachel Atlas"""
+
+#standard
+import pickle
+
+#nonstandard
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from sklearn.metrics import classification_report,f1_score
-import pickle
-import joblib
+import numpy as np
+import xarray as xr
+from sklearn.metrics import f1_score
+
 
 model = pickle.load(open('/home/disk/eos9/jlu43/random_forests/model.0.9500382144075897',"rb"))
 
