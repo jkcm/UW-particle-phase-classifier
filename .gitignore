@@ -7,3 +7,5 @@ __pycache__/
 */.ipynb_checkpoints/*
 python_scripts/*_sandbox.ipynb
 .gitignore
+python_scripts/dask-worker-space/*
+.ipynb_checkpoints/README-checkpoint.md
