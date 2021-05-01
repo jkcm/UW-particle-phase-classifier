@@ -1,20 +1,9 @@
 import xarray as xr
 import numpy as np
-import pandas as pd
-import pickle
-import os
-from joblib import dump, load
-import datetime
-import matplotlib.pyplot as plt
 import sys
-
-import matplotlib as mpl
-
 import glob
-# from phase_psd import *
-from run_psd import *
-
-print('loaded')
+from phase_psd import load_nav
+from run_psd import make_heterogeneity
 
 
 if __name__=="__main__":

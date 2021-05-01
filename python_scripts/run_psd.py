@@ -108,7 +108,7 @@ if __name__ == "__main__":
             ds['particle_counts'] = (('time'), het['particle_counts'].values)
             ds['phase_flip_counts'] = (('time'), het['phase_flip_counts'].values)
             ds['particle_counts'] = (('time'), het['particle_counts'].values)
-            ds['all_article_counts'] = (('time'), het['all_particles_counts'].values)
+            ds['all_particle_counts'] = (('time'), het['all_particles_counts'].values)
             ds.to_netcdf(outfile)
 #             het_outfile = f'/home/disk/eos9/jkcm/Data/particle/psd/test/{flt_string}_heterogeneity.nc'
                 
