@@ -1,25 +1,16 @@
 #Primary Author: Ian Hsiao
 
+#standard
 import pickle
-import xarray as xr
-import numpy as np
-import pandas as pd
-import itertools
+
+#nonstandard
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split, RandomizedSearchCV, cross_val_score
-from sklearn.preprocessing import StandardScaler
-from sklearn.inspection import plot_partial_dependence
-from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier, ExtraTreesClassifier
-from sklearn.tree import DecisionTreeClassifier, plot_tree
-from sklearn.metrics import confusion_matrix, classification_report
-from sklearn.calibration import CalibratedClassifierCV, calibration_curve
-from sklearn import metrics
-from joblib import dump, load
-from scipy import stats
-get_ipython().magic('load_ext autoreload')
-get_ipython().magic('autoreload 2')
+import numpy as np
+import pandas as pd
+from sklearn.calibration import calibration_curve
+import xarray as xr
 
 
 directory = "/home/disk/eos15/ijjhsiao/New_Particles/data"
