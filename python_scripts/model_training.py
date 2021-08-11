@@ -1,18 +1,11 @@
 #Author: Jeremy Lu
-#Using processed training and validation data, trains a random forest model on paritcle phase claissifcaiotn
+#Using processed training and validation data, trains a random forest model on particle phase classification
 
+
+#nonstandard
 import numpy as np
 import xarray as xr
-import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
-import matplotlib.pyplot as plt
-import itertools
-from sklearn.metrics import confusion_matrix
-from sklearn.metrics import classification_report
-import pickle
-import datetime
-import joblib
-from sklearn.inspection import permutation_importance
 
 #load data
 ice_tfile="/home/disk/eos15/ijjhsiao/Particle_Research/data/training/ice/ice_data.train.nc"

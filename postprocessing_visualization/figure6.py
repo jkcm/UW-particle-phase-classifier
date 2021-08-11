@@ -1,20 +1,17 @@
 #Primary Author: Jeremy Lu
 #Plots feature importances of model
 
-import numpy as np
-import xarray as xr
-import pandas as pd
-from sklearn.ensemble import RandomForestClassifier
+#standard
+import pickle
+
+#nonstandard
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import itertools
-from sklearn.metrics import confusion_matrix
-from sklearn.metrics import classification_report
-import pickle
-import datetime
-import joblib
+import numpy as np
 from sklearn.inspection import permutation_importance
+import xarray as xr
+
 
 #import model
 model = pickle.load(open('/home/disk/eos9/jlu43/random_forests/model.0.9500382144075897',"rb")) 

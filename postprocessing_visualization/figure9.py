@@ -1,12 +1,17 @@
-import numpy as np
-import xarray as xr
+"""Sample images of particles with classifications
+    Created by Rachel Atlas"""
+
+#standard
+import random
+
+#nonstandard
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import random
-import datetime as dt
 import matplotlib.gridspec as gridspec
 from netCDF4 import Dataset
+import numpy as np
+
 
 # functions
 def im2dec(arr):

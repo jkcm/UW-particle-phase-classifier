@@ -1,9 +1,17 @@
-import numpy as np
+"""2D histograms of temperature/RH and size
+    Created by Rachel Atlas"""
+
+#standard
+import pickle
+
+#nonstandard
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import pickle
 from matplotlib.colors import LogNorm
+import numpy as np
+
+
 
 combo_path = \
 '/home/disk/eos12/ratlas/SOCRATES/data/in-situ/high_rate/class/'

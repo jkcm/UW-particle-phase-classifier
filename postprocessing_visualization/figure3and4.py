@@ -1,17 +1,14 @@
-import numpy as np
-from netCDF4 import Dataset, num2date
+"""plot test data sample periods and PSD
+    Created by Rachel Atlas"""
+
+#standard
 import glob
+
+#nonstandard
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from scipy import interpolate, stats
-from scipy.special import erfc
-import pandas
-from datetime import date, datetime, timedelta
-from scipy.optimize import curve_fit
-import scipy.integrate as integrate
-from scipy.signal import find_peaks
-from subprocess import call
+import numpy as np
 
 colors=['darkred','midnightblue','midnightblue',\
         'darkorchid','darkorchid']
