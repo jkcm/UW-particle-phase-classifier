@@ -10,7 +10,26 @@ import matplotlib.pyplot as plt
 import numpy as np
 import xarray as xr
 
-psd_files = sorted([i for i in glob.glob('/home/disk/eos9/jkcm/Data/particle/psd/rf*_psd.nc') if not 'rf15' in i])
+def add_labels(axn, shift_data=True):
+    for i, axi in enumerate(axn):
+        letter = chr(ord('a') + i)
+        axi.text(0.02, 0.98, f'{letter})', fontsize=14, horizontalalignment='left', verticalalignment='top',
+                 transform=axi.transAxes, backgroundcolor='w')
+
+        if shift_data:
+            xlim, ylim = axi.transData.inverted().transform(axi.transAxes.transform((0.1, 0.9)))
+            for i in axi.get_lines():
+                if i.get_xdata()[0] <= xlim and i.get_ydata()[0] >= ylim:
+                    ylow, yhigh = axi.get_ylim() 
+                    ydiff = yhigh - ylow
+                    axi.set_ylim(ylow, ylow + ydiff*1.1)
+                    break
+    return
+
+
+
+psd_files = sorted([i for i in glob.glob(
+    '/home/disk/eos9/jkcm/Data/particle/psd/compressed/UW_particle_classifications.1hz.rf*_psd.nc') if not 'rf15' in i])
 flight_files = sorted([i for i in glob.glob('/home/disk/eos9/jfinlon/socrates/*/*.PNI.nc') if not 'RF15' in i])
 psds = xr.open_mfdataset(psd_files, combine='by_coords')
 
@@ -42,8 +61,18 @@ for i in range(len(temp_ranges)-1):
     
     bins = np.exp((np.log(ds.bin_edges.values)[1:]+np.log(ds.bin_edges.values)[:-1])/2)
     log_width = np.log(ds.bin_edges.values)[1:]-np.log(ds.bin_edges.values)[:-1]
+
     
     
+    
+    
+    
+
+
+
+
+
+
     sv = ds.sample_volume.mean(dim='time').values
 #     sv = 1
     ice_ml_hist = ds.count_darea_ice_ml.mean(dim='time').values/sv
@@ -58,39 +87,41 @@ for i in range(len(temp_ranges)-1):
     liq_ml_hist_25 = ds.count_darea_liq_ml_25pct.mean(dim='time').values/sv
     ice_ml_hist_75 = ds.count_darea_ice_ml_75pct.mean(dim='time').values/sv
     liq_ml_hist_75 = ds.count_darea_liq_ml_75pct.mean(dim='time').values/sv
-
+    
     ax.set_xscale('log')
     ax.set_yscale('log')
 
     ax.grid('True')
     if i in [0, 3, 6]:
 #     if True:
-        ax.set_ylabel('dN/dlog(D) (cm$^{-3}$)')
+        ax.set_ylabel('dN/dlog(D) (cm$^{-3}$)', fontsize=14)
     if i in [3, 4, 5]:
 #     if True:
-        ax.set_xlabel('Area-equivalent diameter (mm)')
-    ax.plot(bins, ice_ml_hist/log_width, label='ice', c='tab:orange')
-    ax.plot(bins, ice_ml_hist_ml/log_width, label='ice (bootstrap)', c='tab:orange', ls='--')
+        ax.set_xlabel('Area-equivalent diameter (mm)', fontsize=14)
+    ax.plot(bins, ice_ml_hist/log_width, label='ice', c='tab:orange', ls='--')
+    ax.plot(bins, ice_ml_hist_ml/log_width, label='ice (bootstrap)', c='tab:orange')
     ax.fill_between(bins, ice_ml_hist_25/log_width, ice_ml_hist_75/log_width, color='tab:orange', alpha=0.2)
 #     ax.set_ylim((1e-10, 1e-4))
-    ax.set_ylim((1e-7, 1e0))
-    ax.plot(bins, liq_ml_hist/log_width, label='liquid', c='tab:blue')
-    ax.plot(bins, liq_ml_hist_ml/log_width, label='liquid (bootstrap)', c='tab:blue', ls='--')
+    ax.set_ylim((1e-5, 1e0))
+    ax.plot(bins, liq_ml_hist/log_width, label='liquid', c='tab:blue', ls='--')
+    ax.plot(bins, liq_ml_hist_ml/log_width, label='liquid (bootstrap)', c='tab:blue')
     ax.fill_between(bins, liq_ml_hist_25/log_width, liq_ml_hist_75/log_width, color='tab:blue', alpha=0.2)
     if i ==0:
-        ax.legend()
+        ax.legend(fontsize=14)
     pct = (np.sum(some_particles)/np.sum(all_cloud)).values.item()
     title=f'{tmin}$^\circ$C  to  {tmax}$^\circ$C ({pct:0.1%} of data)'
     print(f'crossover for {tmin}C-{tmax}C: {bins[np.where(ice_ml_hist>liq_ml_hist)[0][0]]:0.2f} mm')
     if tmax==100:
         title = 'All data'
-    ax.set_title(title)
+    ax.set_title(title, fontsize=14)
 for ax in axl:
     ticks = [0.056, 0.1, 0.3, 0.5, 1]
     ax.set_xticks(ticks)
-    ax.set_xticklabels(ticks)
+    ax.set_xticklabels(ticks, fontsize=14)
+    ax.tick_params(axis='y', labelsize=14)
     
     for v in [0.1, 0.3]:
         ax.axvline(v, ls='--', c='r')
     
+add_labels(axl, shift_data=False)
 fig.savefig(r'/home/disk/p/jkcm/plots/particle/size_dist_by_temp.png', bbox_inches='tight')

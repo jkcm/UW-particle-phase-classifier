@@ -151,6 +151,6 @@ if __name__ == "__main__":
     for i in flights_to_classify:
         print(i)
         input_file = f"/home/disk/eos9/jfinlon/socrates/{i}/pbp.{i}.2DS.H.nc"
-        output_file = f"/home/disk/eos9/jkcm/Data/particle/classified/new/UW_particle_classifications.{i}.nc"
+        output_file = f"/home/disk/eos9/jkcm/Data/particle/classified/new/UW_particle_classifications.pbp.{i}.nc"
         make_dataset_from_processed_UIOPS_data(input_file, output_file, model_file)
         

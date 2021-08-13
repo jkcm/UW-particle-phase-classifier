@@ -17,9 +17,10 @@ import xarray as xr
 model = pickle.load(open('/home/disk/eos9/jlu43/random_forests/model.0.9500382144075897',"rb")) 
 
 
+
 #load test data
 ice_test="/home/disk/eos15/ijjhsiao/New_Particles/data/training/test.nc"
-liquid_test="/home/disk/eos9/jkcm/Data/particle/liquid/liquid_data.test.nc"
+liquid_test="/home/disk/eos9/jkcm/Data/particle/training/liquid/liquid_data.test.nc"
 
 ice_testdt = xr.open_dataset(ice_test)
 liquid_testdt = xr.open_dataset(liquid_test)
@@ -49,16 +50,14 @@ y_titles = np.array(['log10_iat','area_ratio', 'fine_detail_ratio', 'max_hole_di
             'edge_at_max_hole','percent_shadow_area','perimeter','eq_diameter',
             'max_dimension','touching_edge','max_bottom_edge_touching',
             'max_top_edge_touching','area','width','length'][::-1])
-
-#fi = model.permutation_importances_
 fi=permutation_importance(model, x_test.drop('phase', axis=1), \
                           x_test.phase, n_repeats=10,random_state=42)
 sorted_idx = np.argsort(fi.importances_mean)
+print(sorted_idx)
 
 fig, ax = plt.subplots(figsize=(6,5.5))
 ax.set_xlabel("Permutation Feature importance",fontsize=14)
 sorted_idx=sorted_idx[5:]
-
 oresult = permutation_importance(model, x_test.drop('phase', axis=1), x_test.phase, n_repeats=10,
                                 random_state=42)
 

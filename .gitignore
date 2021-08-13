@@ -2,9 +2,10 @@
 __pycache__/
 *.py[cod]
 *$py.class
-
+*.png
 .DS_Store
 */.ipynb_checkpoints/*
+*/dask-worker-space/*
 python_scripts/*_sandbox.ipynb
 .gitignore
 python_scripts/dask-worker-space/*
